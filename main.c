@@ -25,6 +25,8 @@
 #include <fcntl.h>
 #include <hurd/trivfs.h>
 
+#include <pci_S.h>
+
 int trivfs_fstype = FSTYPE_MISC;
 int trivfs_fsid = 0;
 int trivfs_support_read = 0;
@@ -44,16 +46,16 @@ trivfs_goaway (struct trivfs_control *fsys, int flags)
 }
 
 int
-pci_demuxer (mach_msg_header_t *inp,
-		mach_msg_header_t *outp)
+pci_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
 {
   mig_routine_t routine;
-  if ((routine = NULL, trivfs_demuxer (inp, outp)))
-  {
-    if (routine)
-      (*routine) (inp, outp);
-    return TRUE;
-  }
+  if ((routine = pci_server_routine (inp)) ||
+      (routine = NULL, trivfs_demuxer (inp, outp)))
+    {
+      if (routine)
+	(*routine) (inp, outp);
+      return TRUE;
+    }
   else
     return FALSE;
 }
