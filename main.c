@@ -76,13 +76,11 @@ main (int argc, char **argv)
   if (bootstrap == MACH_PORT_NULL)
     error (-1, 0, "Must be started as a translator");
 
-  err =
-    trivfs_add_protid_port_class (&pci_protid_portclass);
+  err = trivfs_add_protid_port_class (&pci_protid_portclass);
   if (err)
     error (1, 0, "error creating control port class");
 
-  err =
-    trivfs_add_control_port_class (&pci_cntl_portclass);
+  err = trivfs_add_control_port_class (&pci_cntl_portclass);
   if (err)
     error (1, 0, "error creating control port class");
 
@@ -90,8 +88,7 @@ main (int argc, char **argv)
   err = trivfs_startup (bootstrap, 0,
 			pci_cntl_portclass,
 			pci_bucket,
-			pci_protid_portclass,
-			pci_bucket, &pcicntl);
+			pci_protid_portclass, pci_bucket, &pcicntl);
   mach_port_deallocate (mach_task_self (), bootstrap);
   if (err)
     {
