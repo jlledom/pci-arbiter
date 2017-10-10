@@ -31,7 +31,7 @@ S_pci_read (struct trivfs_protid *master, int bus, int dev, int func, int reg,
 error_t
 S_pci_write (struct trivfs_protid * master, int bus, int dev, int func,
 	     int reg, char *data, size_t datalen,
-	     mach_msg_type_number_t amount)
+	     mach_msg_type_number_t * amount)
 {
   return EOPNOTSUPP;
 }
