@@ -26,6 +26,7 @@
 
 #include <hurd/ports.h>
 
+/* Libports stuff */
 struct port_bucket *pci_bucket;
 
 struct port_class *pci_protid_portclass;
