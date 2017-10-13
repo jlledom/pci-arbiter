@@ -23,6 +23,6 @@
 #define PCI_IMPORTS				\
   import "../libtrivfs/mig-decls.h";		\
 
-#define PCI_INTRAN trivfs_protid_t trivfs_begin_using_protid (pf_t)
+#define PCI_INTRAN trivfs_protid_t trivfs_begin_using_protid (pci_t)
 #define PCI_INTRAN_PAYLOAD trivfs_protid_t trivfs_begin_using_protid_payload
 #define PCI_DESTRUCTOR trivfs_end_using_protid (trivfs_protid_t)
