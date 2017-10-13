@@ -79,11 +79,11 @@ main (int argc, char **argv)
 
   err = trivfs_add_protid_port_class (&pci_protid_portclass);
   if (err)
-    error (1, 0, "error creating control port class");
+    error (1, err, "Error creating protid port class");
 
   err = trivfs_add_control_port_class (&pci_cntl_portclass);
   if (err)
-    error (1, 0, "error creating control port class");
+    error (1, err, "Error creating control port class");
 
   /* Reply to our parent */
   err = trivfs_startup (bootstrap, 0,
