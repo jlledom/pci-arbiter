@@ -20,7 +20,7 @@ makemode	= server
 
 PORTDIR = $(srcdir)/port
 
-SRCS		= main.c pci-ops.c
+SRCS		= main.c pci-ops.c pci_access.c x86_pci.c
 MIGSRCS		= pciServer.c
 OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 

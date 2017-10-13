@@ -21,11 +21,24 @@
 
 #include <pci_S.h>
 
+#include <pci_access.h>
+
 error_t
-S_pci_read (struct trivfs_protid *master, int bus, int dev, int func, int reg,
-	    char **data, size_t * datalen, mach_msg_type_number_t amount)
+S_pci_read (struct trivfs_protid * master, int bus, int dev, int func,
+	    int reg, char **data, size_t * datalen,
+	    mach_msg_type_number_t amount)
 {
-  return EOPNOTSUPP;
+  error_t err;
+
+  if (!master)
+    return EOPNOTSUPP;
+
+  if (amount > *datalen)
+    amount = *datalen;
+
+  err = pci_ifc->read (bus, dev, func, reg, *data, amount);
+
+  return err;
 }
 
 error_t
@@ -33,5 +46,15 @@ S_pci_write (struct trivfs_protid * master, int bus, int dev, int func,
 	     int reg, char *data, size_t datalen,
 	     mach_msg_type_number_t * amount)
 {
-  return EOPNOTSUPP;
+  error_t err;
+
+  if (!master)
+    return EOPNOTSUPP;
+
+  if (*amount > datalen)
+    *amount = datalen;
+
+  err = pci_ifc->write (bus, dev, func, reg, data, *amount);
+
+  return err;
 }

@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <hurd/trivfs.h>
 
+#include <pci_access.h>
 #include <pci_S.h>
 
 int trivfs_fstype = FSTYPE_MISC;
@@ -103,6 +104,11 @@ main (int argc, char **argv)
       pci_owner = st.st_uid;
       pci_group = st.st_gid;
     }
+
+  /* Start the PCI system */
+  err = pci_system_init ();
+  if (err)
+    error (1, err, "Error starting the PCI system");
 
   ports_manage_port_operations_multithread (pci_bucket, pci_demuxer,
 					    30 * 1000, 2 * 60 * 1000, 0);
