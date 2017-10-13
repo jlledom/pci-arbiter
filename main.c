@@ -110,8 +110,7 @@ main (int argc, char **argv)
   if (err)
     error (1, err, "Error starting the PCI system");
 
-  ports_manage_port_operations_multithread (pci_bucket, pci_demuxer,
-					    30 * 1000, 2 * 60 * 1000, 0);
+  ports_manage_port_operations_one_thread (pci_bucket, pci_demuxer, 0);
 
   return 0;
 }
