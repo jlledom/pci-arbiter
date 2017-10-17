@@ -24,7 +24,7 @@ SRCS		= main.c pci-ops.c pci_access.c x86_pci.c
 MIGSRCS		= pciServer.c
 OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 
-HURDLIBS= trivfs ports shouldbeinlibc
+HURDLIBS= trivfs fshelp ports shouldbeinlibc
 
 target = pci_arbiter
 

@@ -21,10 +21,13 @@
 
 #include <pci_S.h>
 
+#include <hurd/fshelp.h>
+
+#include <pci_arbiter.h>
 #include <pci_access.h>
 
 error_t
-S_pci_read (struct trivfs_protid * master, int bus, int dev, int func,
+S_pci_read (struct trivfs_protid *master, int bus, int dev, int func,
 	    int reg, char **data, size_t * datalen,
 	    mach_msg_type_number_t amount)
 {
@@ -32,6 +35,18 @@ S_pci_read (struct trivfs_protid * master, int bus, int dev, int func,
 
   if (!master)
     return EOPNOTSUPP;
+
+  if (!master->isroot)
+    {
+      struct stat st;
+
+      st.st_uid = pci_owner;
+      st.st_gid = pci_group;
+
+      err = fshelp_isowner (&st, master->user);
+      if (err)
+	return EPERM;
+    }
 
   if (amount > *datalen)
     amount = *datalen;
@@ -51,8 +66,17 @@ S_pci_write (struct trivfs_protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
-  if (*amount > datalen)
-    *amount = datalen;
+  if (!master->isroot)
+    {
+      struct stat st;
+
+      st.st_uid = pci_owner;
+      st.st_gid = pci_group;
+
+      err = fshelp_isowner (&st, master->user);
+      if (err)
+	return EPERM;
+    }
 
   err = pci_ifc->write (bus, dev, func, reg, data, *amount);
 
