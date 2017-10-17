@@ -53,6 +53,9 @@ S_pci_read (struct trivfs_protid *master, int bus, int dev, int func,
 
   err = pci_ifc->read (bus, dev, func, reg, *data, amount);
 
+  if(!err)
+    *datalen = amount;
+
   return err;
 }
 
@@ -78,7 +81,9 @@ S_pci_write (struct trivfs_protid * master, int bus, int dev, int func,
 	return EPERM;
     }
 
-  err = pci_ifc->write (bus, dev, func, reg, data, *amount);
+  err = pci_ifc->write (bus, dev, func, reg, data, datalen);
+
+  *amount = datalen;
 
   return err;
 }
