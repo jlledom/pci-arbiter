@@ -19,17 +19,18 @@
 
 /* Implementation of PCI operations */
 
-#include <pci_S.h>
+#include <pci_conf_S.h>
 
 #include <hurd/fshelp.h>
+#include <hurd/trivfs.h>
 
 #include <pci_arbiter.h>
 #include <pci_access.h>
 
 error_t
-S_pci_read (struct trivfs_protid *master, int bus, int dev, int func,
-	    int reg, char **data, size_t * datalen,
-	    mach_msg_type_number_t amount)
+S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
+		 int reg, char **data, size_t * datalen,
+		 mach_msg_type_number_t amount)
 {
   error_t err;
 
@@ -53,16 +54,16 @@ S_pci_read (struct trivfs_protid *master, int bus, int dev, int func,
 
   err = pci_ifc->read (bus, dev, func, reg, *data, amount);
 
-  if(!err)
+  if (!err)
     *datalen = amount;
 
   return err;
 }
 
 error_t
-S_pci_write (struct trivfs_protid * master, int bus, int dev, int func,
-	     int reg, char *data, size_t datalen,
-	     mach_msg_type_number_t * amount)
+S_pci_conf_write (struct trivfs_protid * master, int bus, int dev, int func,
+		  int reg, char *data, size_t datalen,
+		  mach_msg_type_number_t * amount)
 {
   error_t err;
 

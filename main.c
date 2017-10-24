@@ -26,7 +26,7 @@
 #include <hurd/trivfs.h>
 
 #include <pci_access.h>
-#include <pci_S.h>
+#include <pci_conf_S.h>
 
 int trivfs_fstype = FSTYPE_MISC;
 int trivfs_fsid = 0;
@@ -50,7 +50,7 @@ int
 pci_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
 {
   mig_routine_t routine;
-  if ((routine = pci_server_routine (inp)) ||
+  if ((routine = pci_conf_server_routine (inp)) ||
       (routine = NULL, trivfs_demuxer (inp, outp)))
     {
       if (routine)
