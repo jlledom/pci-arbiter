@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 
-dir		= pci_arbiter
+dir		= pci-arbiter
 makemode	= server
 
 PORTDIR = $(srcdir)/port
