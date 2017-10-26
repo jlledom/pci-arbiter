@@ -26,7 +26,7 @@ OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 
 HURDLIBS= trivfs fshelp ports shouldbeinlibc
 
-target = pci_arbiter
+target = pci-arbiter
 
 include ../Makeconf
 
