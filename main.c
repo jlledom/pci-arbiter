@@ -110,6 +110,7 @@ main (int argc, char **argv)
   if (err)
     error (1, err, "Error starting the PCI system");
 
+  /* We make the server one threaded so incoming requests are serialized */
   ports_manage_port_operations_one_thread (pci_bucket, pci_demuxer, 0);
 
   return 0;

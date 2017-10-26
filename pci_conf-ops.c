@@ -27,6 +27,11 @@
 #include <pci_arbiter.h>
 #include <pci_access.h>
 
+/*
+ * Read min(amount,*datalen) bytes and store them on `*data'.
+ *
+ * `*datalen' is updated.
+ */
 error_t
 S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
 		 int reg, char **data, size_t * datalen,
@@ -49,6 +54,10 @@ S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
 	return EPERM;
     }
 
+  /*
+   * We don't allocate new memory since we expect no more than 4 bytes-long
+   * buffers. Instead, we just take the lower value as length.
+   */
   if (amount > *datalen)
     amount = *datalen;
 
@@ -60,6 +69,7 @@ S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
   return err;
 }
 
+/* Write `datalen' bytes from `data'. `amount' is updated. */
 error_t
 S_pci_conf_write (struct trivfs_protid * master, int bus, int dev, int func,
 		  int reg, char *data, size_t datalen,
