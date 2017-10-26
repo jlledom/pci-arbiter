@@ -43,7 +43,27 @@ trivfs_modify_stat (struct trivfs_protid *cred, io_statbuf_t * st)
 error_t
 trivfs_goaway (struct trivfs_control *fsys, int flags)
 {
-  exit (0);
+  if (flags & FSYS_GOAWAY_FORCE)
+    exit (0);
+  else
+    {
+      /* Stop new requests.  */
+      ports_inhibit_class_rpcs (pci_protid_portclass);
+      ports_inhibit_class_rpcs (pci_cntl_portclass);
+
+      if (ports_count_class (pci_protid_portclass) != 0)
+	{
+	  /* We won't go away, so start things going again...  */
+	  ports_resume_class_rpcs (pci_cntl_portclass);
+	  ports_resume_class_rpcs (pci_protid_portclass);
+
+	  return EBUSY;
+	}
+
+      /* There are no sockets, so we can die without breaking anybody
+         too badly.  */
+      exit (0);
+    }
 }
 
 int
