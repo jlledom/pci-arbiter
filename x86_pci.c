@@ -303,10 +303,26 @@ pci_probe (struct pci_iface *pci_ifc)
   return ENODEV;
 }
 
+static int
+pci_nfuncs (int bus, int dev)
+{
+  uint8_t hdr;
+  int err;
+
+  err = pci_ifc->read (bus, dev, 0, PCI_HDRTYPE, &hdr, sizeof (hdr));
+
+  if (err)
+    return err;
+
+  return hdr & 0x80 ? 8 : 1;
+}
+
 int
 pci_system_x86_create (void)
 {
-  int ret;
+  struct pci_device *device;
+  int ret, bus, dev, ndevs, func, nfuncs;
+  uint32_t reg;
 
   ret = x86_enable_io ();
   if (ret)
@@ -325,6 +341,72 @@ pci_system_x86_create (void)
       x86_disable_io ();
       free (pci_ifc);
       return ret;
+    }
+
+  pci_sys = calloc (1, sizeof (struct pci_system));
+  if (pci_sys == NULL)
+    {
+      x86_disable_io ();
+      free (pci_ifc);
+      return ENOMEM;
+    }
+
+  ndevs = 0;
+  for (bus = 0; bus < 256; bus++)
+    {
+      for (dev = 0; dev < 32; dev++)
+	{
+	  nfuncs = pci_nfuncs (bus, dev);
+	  for (func = 0; func < nfuncs; func++)
+	    {
+	      if (pci_ifc->read (bus, dev, func, PCI_VENDOR_ID, &reg,
+				 sizeof (reg)) != 0)
+		continue;
+	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
+		  PCI_VENDOR (reg) == 0)
+		continue;
+	      ndevs++;
+	    }
+	}
+    }
+
+  pci_sys->num_devices = ndevs;
+  pci_sys->devices = calloc (ndevs, sizeof (struct pci_device));
+  if (pci_sys->devices == NULL)
+    {
+      x86_disable_io ();
+      free (pci_ifc);
+      free (pci_sys);
+      return ENOMEM;
+    }
+
+  device = pci_sys->devices;
+  for (bus = 0; bus < 256; bus++)
+    {
+      for (dev = 0; dev < 32; dev++)
+	{
+	  nfuncs = pci_nfuncs (bus, dev);
+	  for (func = 0; func < nfuncs; func++)
+	    {
+	      if (pci_ifc->read (bus, dev, func, PCI_VENDOR_ID, &reg,
+				 sizeof (reg)) != 0)
+		continue;
+	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
+		  PCI_VENDOR (reg) == 0)
+		continue;
+	      device->domain = 0;
+	      device->bus = bus;
+	      device->dev = dev;
+	      device->func = func;
+
+	      if (pci_ifc->read
+		  (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
+		continue;
+	      device->device_class = reg >> 8;
+
+	      device++;
+	    }
+	}
     }
 
   return 0;
