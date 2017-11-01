@@ -21,8 +21,8 @@
 /* Only CPP macro definitions should go in this file. */
 
 #define PCI_CONF_IMPORTS				\
-  import "../libtrivfs/mig-decls.h";		\
+  import "../libnetfs/priv.h";		\
 
-#define PCI_CONF_INTRAN trivfs_protid_t trivfs_begin_using_protid (pci_conf_t)
-#define PCI_CONF_INTRAN_PAYLOAD trivfs_protid_t trivfs_begin_using_protid_payload
-#define PCI_CONF_DESTRUCTOR trivfs_end_using_protid (trivfs_protid_t)
+#define PCI_CONF_INTRAN protid_t begin_using_protid_port (pci_conf_t)
+#define PCI_CONF_INTRAN_PAYLOAD protid_t begin_using_protid_payload
+#define PCI_CONF_DESTRUCTOR end_using_protid_port (protid_t)

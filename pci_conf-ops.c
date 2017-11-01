@@ -21,8 +21,8 @@
 
 #include <pci_conf_S.h>
 
-#include <hurd/fshelp.h>
-#include <hurd/trivfs.h>
+#include <fcntl.h>
+#include <hurd/netfs.h>
 
 #include <pci_arbiter.h>
 #include <pci_access.h>
@@ -33,7 +33,7 @@
  * `*datalen' is updated.
  */
 error_t
-S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
+S_pci_conf_read (struct protid * master, int bus, int dev, int func,
 		 int reg, char **data, size_t * datalen,
 		 mach_msg_type_number_t amount)
 {
@@ -42,17 +42,10 @@ S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
-  if (!master->isroot)
-    {
-      struct stat st;
-
-      st.st_uid = pci_owner;
-      st.st_gid = pci_group;
-
-      err = fshelp_isowner (&st, master->user);
-      if (err)
-	return EPERM;
-    }
+  err =
+    netfs_check_open_permissions (master->user, master->po->np, O_READ, 0);
+  if (err)
+    return EPERM;
 
   /*
    * We don't allocate new memory since we expect no more than 4 bytes-long
@@ -71,7 +64,7 @@ S_pci_conf_read (struct trivfs_protid * master, int bus, int dev, int func,
 
 /* Write `datalen' bytes from `data'. `amount' is updated. */
 error_t
-S_pci_conf_write (struct trivfs_protid * master, int bus, int dev, int func,
+S_pci_conf_write (struct protid * master, int bus, int dev, int func,
 		  int reg, char *data, size_t datalen,
 		  mach_msg_type_number_t * amount)
 {
@@ -80,17 +73,10 @@ S_pci_conf_write (struct trivfs_protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
-  if (!master->isroot)
-    {
-      struct stat st;
-
-      st.st_uid = pci_owner;
-      st.st_gid = pci_group;
-
-      err = fshelp_isowner (&st, master->user);
-      if (err)
-	return EPERM;
-    }
+  err =
+    netfs_check_open_permissions (master->user, master->po->np, O_WRITE, 0);
+  if (err)
+    return EPERM;
 
   err = pci_ifc->write (bus, dev, func, reg, data, datalen);
 

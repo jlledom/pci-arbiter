@@ -24,23 +24,4 @@
 #ifndef PCI_ARBITER_H
 #define PCI_ARBITER_H
 
-#include <hurd/ports.h>
-
-/* Libports stuff */
-struct port_bucket *pci_bucket;
-
-struct port_class *pci_protid_portclass;
-struct port_class *pci_cntl_portclass;
-
-mach_port_t fsys_identity;
-
-/* Trivfs control structure for lwip.  */
-struct trivfs_control *pcicntl;
-
-/* Owner of the underlying node.  */
-uid_t pci_owner;
-
-/* Group of the underlying node.  */
-uid_t pci_group;
-
 #endif /* PCI_ARBITER_H */

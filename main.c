@@ -21,60 +21,42 @@
 
 #include <pci_arbiter.h>
 
+#include <stdio.h>
 #include <error.h>
 #include <fcntl.h>
-#include <hurd/trivfs.h>
+#include <version.h>
+#include <unistd.h>
+#include <hurd/netfs.h>
 
 #include <pci_access.h>
 #include <pci_conf_S.h>
+#include "libnetfs/io_S.h"
+#include "libnetfs/fs_S.h"
+#include "libports/notify_S.h"
+#include "libnetfs/fsys_S.h"
+#include "libports/interrupt_S.h"
+#include "libnetfs/ifsock_S.h"
 
-int trivfs_fstype = FSTYPE_MISC;
-int trivfs_fsid = 0;
-int trivfs_support_read = 0;
-int trivfs_support_write = 0;
-int trivfs_support_exec = 0;
-int trivfs_allow_open = O_READ | O_WRITE;
 
-void
-trivfs_modify_stat (struct trivfs_protid *cred, io_statbuf_t * st)
-{
-}
-
-error_t
-trivfs_goaway (struct trivfs_control *fsys, int flags)
-{
-  if (flags & FSYS_GOAWAY_FORCE)
-    exit (0);
-  else
-    {
-      /* Stop new requests.  */
-      ports_inhibit_class_rpcs (pci_protid_portclass);
-      ports_inhibit_class_rpcs (pci_cntl_portclass);
-
-      if (ports_count_class (pci_protid_portclass) != 0)
-	{
-	  /* We won't go away, so start things going again...  */
-	  ports_resume_class_rpcs (pci_cntl_portclass);
-	  ports_resume_class_rpcs (pci_protid_portclass);
-
-	  return EBUSY;
-	}
-
-      /* There are no sockets, so we can die without breaking anybody
-         too badly.  */
-      exit (0);
-    }
-}
+/* Libnetfs stuff */
+int netfs_maxsymlinks = 0;
+char *netfs_server_name = "pci_arbiter";
+char *netfs_server_version = HURD_VERSION;
 
 int
-pci_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
+netfs_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
 {
   mig_routine_t routine;
-  if ((routine = pci_conf_server_routine (inp)) ||
-      (routine = NULL, trivfs_demuxer (inp, outp)))
+
+  if ((routine = netfs_io_server_routine (inp)) ||
+      (routine = netfs_fs_server_routine (inp)) ||
+      (routine = ports_notify_server_routine (inp)) ||
+      (routine = netfs_fsys_server_routine (inp)) ||
+      (routine = ports_interrupt_server_routine (inp)) ||
+      (routine = netfs_ifsock_server_routine (inp)) ||
+      (routine = pci_conf_server_routine (inp)))
     {
-      if (routine)
-	(*routine) (inp, outp);
+      (*routine) (inp, outp);
       return TRUE;
     }
   else
@@ -85,44 +67,41 @@ int
 main (int argc, char **argv)
 {
   error_t err;
-  struct stat st;
   mach_port_t bootstrap;
-
-  pci_bucket = ports_create_bucket ();
-
-  mach_port_allocate (mach_task_self (),
-		      MACH_PORT_RIGHT_RECEIVE, &fsys_identity);
+  file_t underlying_node;
+  io_statbuf_t underlying_node_stat;
 
   task_get_bootstrap_port (mach_task_self (), &bootstrap);
   if (bootstrap == MACH_PORT_NULL)
-    error (-1, 0, "Must be started as a translator");
+    error (1, 0, "must be started as a translator");
 
-  err = trivfs_add_protid_port_class (&pci_protid_portclass);
-  if (err)
-    error (1, err, "Error creating protid port class");
+  /* Initialize netfs and start the translator. */
+  netfs_init ();
 
-  err = trivfs_add_control_port_class (&pci_cntl_portclass);
-  if (err)
-    error (1, err, "Error creating control port class");
-
-  /* Reply to our parent */
-  err = trivfs_startup (bootstrap, 0,
-			pci_cntl_portclass,
-			pci_bucket,
-			pci_protid_portclass, pci_bucket, &pcicntl);
-  mach_port_deallocate (mach_task_self (), bootstrap);
-  if (err)
-    {
-      return (-1);
-    }
+  underlying_node = netfs_startup (bootstrap, O_READ);
+  netfs_root_node = netfs_make_node (0);
 
   /* Initialize status from underlying node.  */
-  pci_owner = pci_group = 0;
-  err = io_stat (pcicntl->underlying, &st);
-  if (!err)
+  err = io_stat (underlying_node, &underlying_node_stat);
+  if (err)
+    error (1, err, "io_stat");
+
+  netfs_root_node->nn_stat = underlying_node_stat;
+  netfs_root_node->nn_stat.st_fsid = getpid ();
+  netfs_root_node->nn_stat.st_mode = S_IFDIR | (underlying_node_stat.st_mode
+						& ~S_IFMT & ~S_ITRANS);
+  netfs_root_node->nn_translated = netfs_root_node->nn_stat.st_mode;
+
+  /* If the underlying node isn't a directory, enhance the stat
+     information.  */
+  if (!S_ISDIR (underlying_node_stat.st_mode))
     {
-      pci_owner = st.st_uid;
-      pci_group = st.st_gid;
+      if (underlying_node_stat.st_mode & S_IRUSR)
+	netfs_root_node->nn_stat.st_mode |= S_IXUSR;
+      if (underlying_node_stat.st_mode & S_IRGRP)
+	netfs_root_node->nn_stat.st_mode |= S_IXGRP;
+      if (underlying_node_stat.st_mode & S_IROTH)
+	netfs_root_node->nn_stat.st_mode |= S_IXOTH;
     }
 
   /* Start the PCI system */
@@ -130,8 +109,7 @@ main (int argc, char **argv)
   if (err)
     error (1, err, "Error starting the PCI system");
 
-  /* We make the server one threaded so incoming requests are serialized */
-  ports_manage_port_operations_one_thread (pci_bucket, pci_demuxer, 0);
+  netfs_server_loop ();		/* Never returns.  */
 
   return 0;
 }

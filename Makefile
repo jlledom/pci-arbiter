@@ -20,21 +20,21 @@ makemode	= server
 
 PORTDIR = $(srcdir)/port
 
-SRCS		= main.c pci_conf-ops.c pci_access.c x86_pci.c
+SRCS		= main.c pci_conf-ops.c pci_access.c x86_pci.c netfs.c
 MIGSRCS		= pci_confServer.c
 OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 
-HURDLIBS= trivfs fshelp ports shouldbeinlibc
-
+HURDLIBS= fshelp ports shouldbeinlibc netfs
 target = pci-arbiter
 
 include ../Makeconf
 
-CFLAGS += -I$(PORTDIR)/include
+CFLAGS += -I$(PORTDIR)/include -ggdb -O0
 
 CPPFLAGS += -imacros $(srcdir)/config.h
 pci_conf-MIGSFLAGS = -imacros $(srcdir)/mig-mutate.h
 
 # cpp doesn't automatically make dependencies for -imacros dependencies. argh.
 pci_conf_S.h pci_confServer.c: mig-mutate.h
+
 $(OBJS): config.h
