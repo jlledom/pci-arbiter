@@ -19,6 +19,8 @@
 
 /* Libnetfs callbacks */
 
+#include <netfs_impl.h>
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -26,7 +28,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
-
 #include <hurd/netfs.h>
 
 /* Attempt to create a file named NAME in DIR for USER with MODE.  Set *NODE

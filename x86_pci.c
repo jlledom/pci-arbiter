@@ -43,6 +43,17 @@
 #include <sys/io.h>
 
 #include <pci_access.h>
+#include <netfs_impl.h>
+#include <netfs_util.h>
+
+/* Tree levels */
+enum tree_level
+{
+  LEVEL_NONE,
+  LEVEL_BUS,
+  LEVEL_DEV,
+  LEVEL_FUNC
+};
 
 static int
 x86_enable_io (void)
@@ -320,8 +331,10 @@ pci_nfuncs (int bus, int dev)
 int
 pci_system_x86_create (void)
 {
-  struct pci_device *device;
-  int ret, bus, dev, ndevs, func, nfuncs;
+  struct pci_dirent *device, *cur_parent;
+  int ret, domain, bus, dev, nentries, func, nfuncs;
+  enum tree_level level;
+  char entry_name[NAME_SIZE];
   uint32_t reg;
 
   ret = x86_enable_io ();
@@ -343,15 +356,13 @@ pci_system_x86_create (void)
       return ret;
     }
 
-  pci_sys = calloc (1, sizeof (struct pci_system));
-  if (pci_sys == NULL)
-    {
-      x86_disable_io ();
-      free (pci_ifc);
-      return ENOMEM;
-    }
-
-  ndevs = 0;
+  /*
+   * First, count how many directory entries will we need.
+   *
+   * Start from 2, for root and domain entries.
+   */
+  nentries = 2;
+  level = LEVEL_BUS;		/* Start on bus level */
   for (bus = 0; bus < 256; bus++)
     {
       for (dev = 0; dev < 32; dev++)
@@ -365,22 +376,54 @@ pci_system_x86_create (void)
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
 		continue;
-	      ndevs++;
+	      if (level == LEVEL_BUS)
+		level++;
+	      if (level == LEVEL_DEV)
+		level++;
+	      nentries++;
 	    }
+	  if (level == LEVEL_FUNC)
+	    {
+	      nentries++;
+	      level--;
+	    }
+	}
+      if (level == LEVEL_DEV)
+	{
+	  nentries++;
+	  level--;
 	}
     }
 
-  pci_sys->num_devices = ndevs;
-  pci_sys->devices = calloc (ndevs, sizeof (struct pci_device));
-  if (pci_sys->devices == NULL)
+  /*
+   * At this point, `netfs_root_node->nn->ln' contains the root entry only.
+   * Resize it to fit all entries.
+   */
+  netfs_root_node->nn->ln =
+    realloc (netfs_root_node->nn->ln,
+	     (nentries) * sizeof (struct pci_dirent));
+  if (netfs_root_node->nn->ln == NULL)
     {
       x86_disable_io ();
       free (pci_ifc);
-      free (pci_sys);
       return ENOMEM;
     }
 
-  device = pci_sys->devices;
+  /* Add an entry for domain = 0. We still don't support PCI express */
+  cur_parent = netfs_root_node->nn->ln;
+  device = netfs_root_node->nn->ln + 1;
+  domain = 0;
+  memset (entry_name, 0, NAME_SIZE);
+  snprintf (entry_name, NAME_SIZE, "%04d", domain);
+  ret = create_dir_entry (domain, -1, -1, -1, -1, entry_name, cur_parent,
+			  cur_parent->stat, device);
+  if (ret)
+    return ret;
+
+  /* Entering bus level. */
+  level = LEVEL_BUS;
+  cur_parent = device;
+  device++;
   for (bus = 0; bus < 256; bus++)
     {
       for (dev = 0; dev < 32; dev++)
@@ -394,18 +437,73 @@ pci_system_x86_create (void)
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
 		continue;
-	      device->domain = 0;
-	      device->bus = bus;
-	      device->dev = dev;
-	      device->func = func;
-
 	      if (pci_ifc->read
 		  (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
 		continue;
-	      device->device_class = reg >> 8;
+
+	      /*
+	       * This address contains a valid device.
+	       *
+	       * Add intermediate level entries and switch to lower levels
+	       * only when a valid device is found.
+	       */
+	      if (level == LEVEL_BUS)
+		{
+		  /* Add entry for bus */
+		  memset (entry_name, 0, NAME_SIZE);
+		  snprintf (entry_name, NAME_SIZE, "%02d", bus);
+		  ret =
+		    create_dir_entry (domain, bus, -1, -1, -1, entry_name,
+				      cur_parent, cur_parent->stat, device);
+		  if (ret)
+		    return ret;
+
+		  /* Switch to dev level */
+		  cur_parent = device;
+		  device++;
+		  level++;
+		}
+	      if (level == LEVEL_DEV)
+		{
+		  /* Add entry for dev */
+		  memset (entry_name, 0, NAME_SIZE);
+		  snprintf (entry_name, NAME_SIZE, "%02d", dev);
+		  ret =
+		    create_dir_entry (domain, bus, dev, -1, -1, entry_name,
+				      cur_parent, cur_parent->stat, device);
+		  if (ret)
+		    return ret;
+
+		  /* Switch to func level */
+		  cur_parent = device;
+		  device++;
+		  level++;
+		}
+
+	      /* Func entry */
+	      memset (entry_name, 0, NAME_SIZE);
+	      snprintf (entry_name, NAME_SIZE, "%02d", func);
+	      ret =
+		create_dir_entry (domain, bus, dev, func, reg >> 8,
+				  entry_name, cur_parent, cur_parent->stat,
+				  device);
+	      if (ret)
+		return ret;
 
 	      device++;
 	    }
+	  if (level == LEVEL_FUNC)
+	    {
+	      /* Switch to dev level */
+	      cur_parent = cur_parent->parent;
+	      level--;
+	    }
+	}
+      if (level == LEVEL_DEV)
+	{
+	  /* Switch to bus level */
+	  cur_parent = cur_parent->parent;
+	  level--;
 	}
     }
 

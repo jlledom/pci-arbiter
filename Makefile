@@ -20,7 +20,8 @@ makemode	= server
 
 PORTDIR = $(srcdir)/port
 
-SRCS		= main.c pci_conf-ops.c pci_access.c x86_pci.c netfs.c
+SRCS		= main.c pci_conf-ops.c pci_access.c x86_pci.c \
+		  netfs_impl.c netfs_util.c
 MIGSRCS		= pci_confServer.c
 OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 
@@ -29,7 +30,7 @@ target = pci-arbiter
 
 include ../Makeconf
 
-CFLAGS += -I$(PORTDIR)/include -ggdb -O0
+CFLAGS += -I$(PORTDIR)/include
 
 CPPFLAGS += -imacros $(srcdir)/config.h
 pci_conf-MIGSFLAGS = -imacros $(srcdir)/mig-mutate.h

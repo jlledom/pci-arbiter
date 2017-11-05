@@ -25,10 +25,8 @@
 #include <error.h>
 #include <fcntl.h>
 #include <version.h>
-#include <unistd.h>
 #include <hurd/netfs.h>
 
-#include <pci_access.h>
 #include <pci_conf_S.h>
 #include "libnetfs/io_S.h"
 #include "libnetfs/fs_S.h"
@@ -36,6 +34,8 @@
 #include "libnetfs/fsys_S.h"
 #include "libports/interrupt_S.h"
 #include "libnetfs/ifsock_S.h"
+#include <pci_access.h>
+#include <netfs_util.h>
 
 
 /* Libnetfs stuff */
@@ -68,8 +68,6 @@ main (int argc, char **argv)
 {
   error_t err;
   mach_port_t bootstrap;
-  file_t underlying_node;
-  io_statbuf_t underlying_node_stat;
 
   task_get_bootstrap_port (mach_task_self (), &bootstrap);
   if (bootstrap == MACH_PORT_NULL)
@@ -77,34 +75,12 @@ main (int argc, char **argv)
 
   /* Initialize netfs and start the translator. */
   netfs_init ();
-
-  underlying_node = netfs_startup (bootstrap, O_READ);
-  netfs_root_node = netfs_make_node (0);
-
-  /* Initialize status from underlying node.  */
-  err = io_stat (underlying_node, &underlying_node_stat);
+  err =
+    create_root_node (netfs_startup (bootstrap, O_READ), &netfs_root_node);
   if (err)
-    error (1, err, "io_stat");
+    error (1, err, "Initializing libnetfs");
 
-  netfs_root_node->nn_stat = underlying_node_stat;
-  netfs_root_node->nn_stat.st_fsid = getpid ();
-  netfs_root_node->nn_stat.st_mode = S_IFDIR | (underlying_node_stat.st_mode
-						& ~S_IFMT & ~S_ITRANS);
-  netfs_root_node->nn_translated = netfs_root_node->nn_stat.st_mode;
-
-  /* If the underlying node isn't a directory, enhance the stat
-     information.  */
-  if (!S_ISDIR (underlying_node_stat.st_mode))
-    {
-      if (underlying_node_stat.st_mode & S_IRUSR)
-	netfs_root_node->nn_stat.st_mode |= S_IXUSR;
-      if (underlying_node_stat.st_mode & S_IRGRP)
-	netfs_root_node->nn_stat.st_mode |= S_IXGRP;
-      if (underlying_node_stat.st_mode & S_IROTH)
-	netfs_root_node->nn_stat.st_mode |= S_IXOTH;
-    }
-
-  /* Start the PCI system */
+  /* Starts the PCI system, also creates the fs tree */
   err = pci_system_init ();
   if (err)
     error (1, err, "Error starting the PCI system");
