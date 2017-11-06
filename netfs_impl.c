@@ -30,6 +30,110 @@
 #include <sys/mman.h>
 #include <hurd/netfs.h>
 
+#include <netfs_util.h>
+
+#define DIRENTS_CHUNK_SIZE      (8*1024)
+/* Returned directory entries are aligned to blocks this many bytes long.
+ * Must be a power of two.  */
+#define DIRENT_ALIGN 4
+#define DIRENT_NAME_OFFS offsetof (struct dirent, d_name)
+
+/* Length is structure before the name + the name + '\0', all
+ *    padded to a four-byte alignment.  */
+#define DIRENT_LEN(name_len)                                                  \
+  ((DIRENT_NAME_OFFS + (name_len) + 1 + (DIRENT_ALIGN - 1))                   \
+   & ~(DIRENT_ALIGN - 1))
+
+/* Fetch a directory, as for netfs_get_dirents.  */
+static error_t
+get_dirents (struct pci_dirent *dir,
+	     int first_entry, int max_entries, char **data,
+	     mach_msg_type_number_t * data_len,
+	     vm_size_t max_data_len, int *data_entries)
+{
+  struct pci_dirent *e;
+  error_t err = 0;
+  int i, count;
+  size_t size;
+  char *p;
+
+  if (first_entry >= dir->dir->num_entries)
+    {
+      *data_len = 0;
+      *data_entries = 0;
+      return 0;
+    }
+
+  if (max_entries < 0)
+    count = dir->dir->num_entries;
+  else
+    {
+      count = ((first_entry + max_entries) >= dir->dir->num_entries ?
+	       dir->dir->num_entries : max_entries) - first_entry;
+    }
+
+  size =
+    (count * DIRENTS_CHUNK_SIZE) >
+    max_data_len ? max_data_len : count * DIRENTS_CHUNK_SIZE;
+
+  *data = mmap (0, size, PROT_READ | PROT_WRITE, MAP_ANON, 0, 0);
+  err = ((void *) *data == (void *) -1) ? errno : 0;
+  if (err)
+    return err;
+
+  p = *data;
+  for (i = first_entry; i < count; i++)
+    {
+      struct dirent hdr;
+      size_t name_len;
+      size_t sz;
+      int entry_type;
+
+      e = dir->dir->entries[i];
+      name_len = strlen (e->name);
+      sz = DIRENT_LEN (name_len);
+      entry_type = IFTODT (e->stat.st_mode);
+
+      hdr.d_namlen = name_len;
+      hdr.d_fileno = e->stat.st_ino;
+      hdr.d_reclen = sz;
+      hdr.d_type = entry_type;
+
+      memcpy (p, &hdr, DIRENT_NAME_OFFS);
+      strncpy (p + DIRENT_NAME_OFFS, e->name, name_len);
+      p += sz;
+    }
+
+  vm_address_t alloc_end = (vm_address_t) (*data + size);
+  vm_address_t real_end = round_page (p);
+  if (alloc_end > real_end)
+    munmap ((caddr_t) real_end, alloc_end - real_end);
+  *data_len = p - *data;
+  *data_entries = count;
+
+  return err;
+}
+
+static struct pci_dirent *
+lookup (struct node *np, char *name)
+{
+  int i;
+  struct pci_dirent *ret = 0, *e;
+
+  for (i = 0; i < np->nn->ln->dir->num_entries; i++)
+    {
+      e = np->nn->ln->dir->entries[i];
+
+      if (!strncmp (e->name, name, NAME_SIZE))
+	{
+	  ret = e;
+	  break;
+	}
+    }
+
+  return ret;
+}
+
 /* Attempt to create a file named NAME in DIR for USER with MODE.  Set *NODE
    to the new node upon return.  On any error, clear *NODE.  *NODE should be
    locked on success; no matter what, unlock DIR before returning.  */
@@ -100,7 +204,17 @@ netfs_get_dirents (struct iouser * cred, struct node * dir,
 		   mach_msg_type_number_t * data_len,
 		   vm_size_t max_data_len, int *data_entries)
 {
-  return EOPNOTSUPP;
+  error_t err = 0;
+
+  if (dir->nn->ln->dir)
+    {
+      err = get_dirents (dir->nn->ln, first_entry, max_entries,
+			 data, data_len, max_entries, data_entries);
+    }
+  else
+    err = ENOTDIR;
+
+  return err;
 }
 
 /* Lookup NAME in DIR for USER; set *NODE to the found name upon return.  If
@@ -111,7 +225,75 @@ error_t
 netfs_attempt_lookup (struct iouser * user, struct node * dir,
 		      char *name, struct node ** node)
 {
-  return 0;
+  error_t err = 0;
+  struct pci_dirent *entry;
+
+  if (*name == '\0' || strcmp (name, ".") == 0)
+    /* Current directory -- just add an additional reference to DIR's node
+       and return it.  */
+    {
+      netfs_nref (dir);
+      *node = dir;
+      return 0;
+    }
+  else if (strcmp (name, "..") == 0)
+    /* Parent directory.  */
+    {
+      if (dir->nn->ln->parent)
+	{
+	  *node = dir->nn->ln->parent->node;
+	  pthread_mutex_lock (&(*node)->lock);
+	  netfs_nref (*node);
+	}
+      else
+	{
+	  err = ENOENT;		/* No .. */
+	  *node = 0;
+	}
+
+      pthread_mutex_unlock (&dir->lock);
+
+      return err;
+    }
+
+  if (dir->nn->ln->dir)
+    {
+      entry = lookup (dir, name);
+      if (!entry)
+	{
+	  err = ENOENT;
+	  *node = 0;
+	}
+      else
+	{
+	  if (entry->node)
+	    {
+	      netfs_nref (dir->nn->ln->node);
+	      *node = dir->nn->ln->node;
+	    }
+	  else
+	    {
+	      err = create_node (entry, node);
+	      if (err)
+		{
+		  *node = 0;
+		  return err;
+		}
+
+	      pthread_mutex_lock (&(*node)->lock);
+	      netfs_nref (*node);
+	    }
+	}
+    }
+  else
+    {
+      err = ENOTDIR;
+      *node = 0;
+    }
+
+  pthread_mutex_unlock (&dir->lock);
+
+  return err;
 }
 
 /* Delete NAME in DIR for USER. */

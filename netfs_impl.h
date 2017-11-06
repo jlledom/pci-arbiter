@@ -68,6 +68,9 @@ struct pci_dirent
    * When `dir' is null, this is a file; when not null, it's a directory.
    */
   struct pci_dir *dir;
+
+  /* Active node on this entry */
+  struct node *node;
 };
 
 /*

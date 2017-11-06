@@ -29,7 +29,8 @@
 error_t create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 			  int16_t func, int32_t device_class, char *name,
 			  struct pci_dirent * parent, io_statbuf_t stat,
-			  struct pci_dirent * entry);
+			  struct node * node, struct pci_dirent * entry);
 error_t create_root_node (file_t underlying_node, struct node **root_node);
+error_t create_node (struct pci_dirent *e, struct node **node);
 
 #endif /* NETFS_UTIL_H */

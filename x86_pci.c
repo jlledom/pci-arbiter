@@ -416,7 +416,7 @@ pci_system_x86_create (void)
   memset (entry_name, 0, NAME_SIZE);
   snprintf (entry_name, NAME_SIZE, "%04d", domain);
   ret = create_dir_entry (domain, -1, -1, -1, -1, entry_name, cur_parent,
-			  cur_parent->stat, device);
+			  cur_parent->stat, 0, device);
   if (ret)
     return ret;
 
@@ -454,7 +454,8 @@ pci_system_x86_create (void)
 		  snprintf (entry_name, NAME_SIZE, "%02d", bus);
 		  ret =
 		    create_dir_entry (domain, bus, -1, -1, -1, entry_name,
-				      cur_parent, cur_parent->stat, device);
+				      cur_parent, cur_parent->stat, 0,
+				      device);
 		  if (ret)
 		    return ret;
 
@@ -470,7 +471,8 @@ pci_system_x86_create (void)
 		  snprintf (entry_name, NAME_SIZE, "%02d", dev);
 		  ret =
 		    create_dir_entry (domain, bus, dev, -1, -1, entry_name,
-				      cur_parent, cur_parent->stat, device);
+				      cur_parent, cur_parent->stat, 0,
+				      device);
 		  if (ret)
 		    return ret;
 
@@ -485,7 +487,7 @@ pci_system_x86_create (void)
 	      snprintf (entry_name, NAME_SIZE, "%02d", func);
 	      ret =
 		create_dir_entry (domain, bus, dev, func, reg >> 8,
-				  entry_name, cur_parent, cur_parent->stat,
+				  entry_name, cur_parent, cur_parent->stat, 0,
 				  device);
 	      if (ret)
 		return ret;

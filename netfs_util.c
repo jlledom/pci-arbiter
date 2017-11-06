@@ -29,7 +29,7 @@ error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 		  int16_t func, int32_t device_class, char *name,
 		  struct pci_dirent *parent, io_statbuf_t stat,
-		  struct pci_dirent *entry)
+		  struct node *node, struct pci_dirent *entry)
 {
   uint16_t parent_num_entries;
 
@@ -41,6 +41,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
   strncpy (entry->name, name, NAME_SIZE);
   entry->parent = parent;
   entry->stat = stat;
+  entry->node = node;
 
   /* Update parent's child list */
   if (entry->parent)
@@ -107,9 +108,32 @@ create_root_node (file_t underlying_node, struct node ** root_node)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
-  err = create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, nn->ln);
+  err =
+    create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, netfs_root_node,
+		      nn->ln);
 
   *root_node = np;
+
+  return 0;
+}
+
+error_t
+create_node (struct pci_dirent * e, struct node ** node)
+{
+  struct node *np;
+  struct netnode *nn;
+
+  nn = calloc (1, sizeof (struct netnode));
+  if (!nn)
+    return ENOMEM;
+
+  nn->ln = e;
+
+  np = netfs_make_node (nn);
+  np->nn_stat = e->stat;
+  np->nn_translated = np->nn_stat.st_mode;
+
+  *node = np;
 
   return 0;
 }
