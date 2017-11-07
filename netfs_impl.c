@@ -141,6 +141,8 @@ error_t
 netfs_attempt_create_file (struct iouser * user, struct node * dir,
 			   char *name, mode_t mode, struct node ** node)
 {
+  *node = 0;
+  pthread_mutex_unlock (&dir->lock);
   return EOPNOTSUPP;
 }
 
@@ -256,42 +258,52 @@ netfs_attempt_lookup (struct iouser * user, struct node * dir,
       return err;
     }
 
+  /* `name' is not . nor .. */
   if (dir->nn->ln->dir)
     {
+      /* `dir' is a directory */
       entry = lookup (dir, name);
       if (!entry)
 	{
 	  err = ENOENT;
-	  *node = 0;
 	}
       else
 	{
 	  if (entry->node)
 	    {
-	      netfs_nref (dir->nn->ln->node);
-	      *node = dir->nn->ln->node;
+	      netfs_nref (entry->node);
 	    }
 	  else
 	    {
+	      /*
+	       * No active node, create one.
+	       * The new node is created with a reference.
+	       */
 	      err = create_node (entry, node);
-	      if (err)
-		{
-		  *node = 0;
-		  return err;
-		}
+	    }
 
+	  if (!err)
+	    {
+	      *node = entry->node;
+	      /* We have to unlock DIR's node before locking the child node
+	         because the locking order is always child-parent.  We know
+	         the child node won't go away because we already hold the
+	         additional reference to it.  */
+	      pthread_mutex_unlock (&dir->lock);
 	      pthread_mutex_lock (&(*node)->lock);
-	      netfs_nref (*node);
 	    }
 	}
     }
   else
     {
       err = ENOTDIR;
-      *node = 0;
     }
 
-  pthread_mutex_unlock (&dir->lock);
+  if (err)
+    {
+      *node = 0;
+      pthread_mutex_unlock (&dir->lock);
+    }
 
   return err;
 }
