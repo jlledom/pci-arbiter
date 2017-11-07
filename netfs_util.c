@@ -78,18 +78,10 @@ create_root_node (file_t underlying_node, struct node ** root_node)
   err = io_stat (underlying_node, &underlying_node_stat);
   if (err)
     return err;
-  nn = calloc (1, sizeof (struct netnode));
-  if (!nn)
+
+  np = netfs_make_node_alloc (sizeof (struct netnode));
+  if (!np)
     return ENOMEM;
-
-  nn->ln = calloc (1, sizeof (struct pci_dirent));
-  if (!nn->ln)
-    {
-      free (nn);
-      return ENOMEM;
-    }
-
-  np = netfs_make_node (nn);
   np->nn_stat = underlying_node_stat;
   np->nn_stat.st_fsid = getpid ();
   np->nn_stat.st_mode = S_IFDIR | (underlying_node_stat.st_mode
@@ -108,6 +100,14 @@ create_root_node (file_t underlying_node, struct node ** root_node)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
+  nn = netfs_node_netnode (np);
+  nn->ln = calloc (1, sizeof (struct pci_dirent));
+  if (!nn->ln)
+    {
+      free (np);
+      return ENOMEM;
+    }
+
   err =
     create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, netfs_root_node,
 		      nn->ln);
@@ -123,15 +123,14 @@ create_node (struct pci_dirent * e, struct node ** node)
   struct node *np;
   struct netnode *nn;
 
-  nn = calloc (1, sizeof (struct netnode));
-  if (!nn)
+  np = netfs_make_node_alloc (sizeof (struct netnode));
+  if (!np)
     return ENOMEM;
-
-  nn->ln = e;
-
-  np = netfs_make_node (nn);
   np->nn_stat = e->stat;
   np->nn_translated = np->nn_stat.st_mode;
+
+  nn = netfs_node_netnode (np);
+  nn->ln = e;
 
   *node = e->node = np;
 
@@ -143,6 +142,5 @@ destroy_node (struct node *node)
 {
   if (node->nn->ln)
     node->nn->ln->node = 0;
-  free (node->nn);
   free (node);
 }
