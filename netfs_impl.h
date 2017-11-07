@@ -48,7 +48,7 @@ struct pci_dirent
   int32_t domain;
   int16_t bus;
   int16_t dev;
-  int16_t func;
+  int8_t func;
 
   /*
    * Device's class, subclass, and programming interface packed into a

@@ -484,7 +484,7 @@ pci_system_x86_create (void)
 
 	      /* Func entry */
 	      memset (entry_name, 0, NAME_SIZE);
-	      snprintf (entry_name, NAME_SIZE, "%02d", func);
+	      snprintf (entry_name, NAME_SIZE, "%01d", func);
 	      ret =
 		create_dir_entry (domain, bus, dev, func, reg >> 8,
 				  entry_name, cur_parent, cur_parent->stat, 0,
