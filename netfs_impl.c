@@ -385,15 +385,6 @@ netfs_attempt_mkdev (struct iouser * cred, struct node * node,
   return EOPNOTSUPP;
 }
 
-/* Attempt to set the passive translator record for FILE to ARGZ (of length
-   ARGZLEN) for user CRED. */
-error_t
-netfs_set_translator (struct iouser * cred, struct node * node,
-		      char *argz, size_t argzlen)
-{
-  return EOPNOTSUPP;
-}
-
 /* This should attempt a chflags call for the user specified by CRED on node
    NODE, to change the flags to FLAGS. */
 error_t
