@@ -82,14 +82,14 @@ get_dirents (struct pci_dirent *dir,
     return err;
 
   p = *data;
-  for (i = first_entry; i < count; i++)
+  for (i = 0; i < count; i++)
     {
       struct dirent hdr;
       size_t name_len;
       size_t sz;
       int entry_type;
 
-      e = dir->dir->entries[i];
+      e = dir->dir->entries[i + first_entry];
       name_len = strlen (e->name);
       sz = DIRENT_LEN (name_len);
       entry_type = IFTODT (e->stat.st_mode);
