@@ -468,4 +468,5 @@ netfs_attempt_write (struct iouser * cred, struct node * node,
 void
 netfs_node_norefs (struct node *node)
 {
+  destroy_node (node);
 }

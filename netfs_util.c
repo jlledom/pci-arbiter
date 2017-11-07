@@ -133,7 +133,16 @@ create_node (struct pci_dirent * e, struct node ** node)
   np->nn_stat = e->stat;
   np->nn_translated = np->nn_stat.st_mode;
 
-  *node = np;
+  *node = e->node = np;
 
   return 0;
+}
+
+void
+destroy_node (struct node *node)
+{
+  if (node->nn->ln)
+    node->nn->ln->node = 0;
+  free (node->nn);
+  free (node);
 }
