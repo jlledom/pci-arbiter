@@ -396,13 +396,12 @@ pci_system_x86_create (void)
     }
 
   /*
-   * At this point, `netfs_root_node->nn->ln' contains the root entry only.
+   * At this point, `fs->root->nn->ln' contains the root entry only.
    * Resize it to fit all entries.
    */
-  netfs_root_node->nn->ln =
-    realloc (netfs_root_node->nn->ln,
-	     (nentries) * sizeof (struct pci_dirent));
-  if (netfs_root_node->nn->ln == NULL)
+  fs->root->nn->ln =
+    realloc (fs->root->nn->ln, (nentries) * sizeof (struct pci_dirent));
+  if (fs->root->nn->ln == NULL)
     {
       x86_disable_io ();
       free (pci_ifc);
@@ -410,8 +409,8 @@ pci_system_x86_create (void)
     }
 
   /* Add an entry for domain = 0. We still don't support PCI express */
-  cur_parent = netfs_root_node->nn->ln;
-  device = netfs_root_node->nn->ln + 1;
+  cur_parent = fs->root->nn->ln;
+  device = fs->root->nn->ln + 1;
   domain = 0;
   memset (entry_name, 0, NAME_SIZE);
   snprintf (entry_name, NAME_SIZE, "%04d", domain);

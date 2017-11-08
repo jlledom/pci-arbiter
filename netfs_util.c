@@ -24,6 +24,9 @@
 #include <hurd/netfs.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+
+#include <pci_arbiter.h>
 
 error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
@@ -67,7 +70,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 }
 
 error_t
-create_root_node (file_t underlying_node, struct node ** root_node)
+create_file_system (file_t underlying_node, struct pcifs ** fs)
 {
   error_t err;
   struct node *np;
@@ -108,11 +111,16 @@ create_root_node (file_t underlying_node, struct node ** root_node)
       return ENOMEM;
     }
 
-  err =
-    create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, netfs_root_node,
-		      nn->ln);
+  err = create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np, nn->ln);
 
-  *root_node = np;
+  *fs = calloc (1, sizeof (struct pcifs));
+  if (!*fs)
+    return ENOMEM;
+
+  (*fs)->root = netfs_root_node = np;
+  (*fs)->params.node_cache_max = 16;
+  pthread_mutex_init (&(*fs)->node_cache_lock, 0);
+  nn->fs = *fs;
 
   return 0;
 }
@@ -130,7 +138,9 @@ create_node (struct pci_dirent * e, struct node ** node)
   np->nn_translated = np->nn_stat.st_mode;
 
   nn = netfs_node_netnode (np);
+  memset (nn, 0, sizeof (struct netnode));
   nn->ln = e;
+  nn->fs = fs;
 
   *node = e->node = np;
 

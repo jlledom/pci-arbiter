@@ -19,19 +19,11 @@
 
 /* Header for utility functions */
 
-#ifndef NETFS_UTIL_H
-#define NETFS_UTIL_H
+#ifndef NCACHE_H
+#define NCACHE_H
 
 #include <hurd/netfs.h>
 
-#include <netfs_impl.h>
+void node_cache (struct node *node);
 
-error_t create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
-			  int16_t func, int32_t device_class, char *name,
-			  struct pci_dirent * parent, io_statbuf_t stat,
-			  struct node * node, struct pci_dirent * entry);
-error_t create_file_system (file_t underlying_node, struct pcifs **root_node);
-error_t create_node (struct pci_dirent *e, struct node **node);
-void destroy_node (struct node *node);
-
-#endif /* NETFS_UTIL_H */
+#endif /* NCACHE_H */

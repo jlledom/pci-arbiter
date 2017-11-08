@@ -24,6 +24,8 @@
 
 #include <hurd/netfs.h>
 
+#include <pci_arbiter.h>
+
 #ifndef NAME_SIZE
 #define NAME_SIZE 16
 #endif
@@ -92,8 +94,14 @@ struct pci_dir
  */
 struct netnode
 {
+  /* The pci filesystem.  */
+  struct pcifs *fs;
+
   /* Light node */
   struct pci_dirent *ln;
+
+  /* Position in the node cache.  */
+  struct node *ncache_next, *ncache_prev;
 };
 
 #endif /* NETFS_IMPL_H */

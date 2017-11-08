@@ -24,4 +24,30 @@
 #ifndef PCI_ARBITER_H
 #define PCI_ARBITER_H
 
+#include <hurd/netfs.h>
+#include <pthread.h>
+
+/* Various parameters that can be used to change the behavior of an ftpfs.  */
+struct pcifs_params
+{
+  /* The size of the node cache.  */
+  size_t node_cache_max;
+};
+
+/* A particular filesystem.  */
+struct pcifs
+{
+  /* Root of filesystem.  */
+  struct node *root;
+
+  struct pcifs_params params;
+
+  /* A cache that holds a reference to recently used nodes.  */
+  struct node *node_cache_mru, *node_cache_lru;
+  size_t node_cache_len;	/* Number of entries in it.  */
+  pthread_mutex_t node_cache_lock;
+};
+
+struct pcifs *fs;
+
 #endif /* PCI_ARBITER_H */

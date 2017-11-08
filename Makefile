@@ -21,7 +21,7 @@ makemode	= server
 PORTDIR = $(srcdir)/port
 
 SRCS		= main.c pci_conf-ops.c pci_access.c x86_pci.c \
-		  netfs_impl.c netfs_util.c
+		  netfs_impl.c netfs_util.c ncache.c
 MIGSRCS		= pci_confServer.c
 OBJS		= $(patsubst %.S,%.o,$(patsubst %.c,%.o, $(SRCS) $(MIGSRCS)))
 

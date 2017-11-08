@@ -75,8 +75,7 @@ main (int argc, char **argv)
 
   /* Initialize netfs and start the translator. */
   netfs_init ();
-  err =
-    create_root_node (netfs_startup (bootstrap, O_READ), &netfs_root_node);
+  err = create_file_system (netfs_startup (bootstrap, O_READ), &fs);
   if (err)
     error (1, err, "Initializing libnetfs");
 

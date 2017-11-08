@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <hurd/netfs.h>
 
+#include <pci_arbiter.h>
+#include <ncache.h>
 #include <netfs_util.h>
 
 #define DIRENTS_CHUNK_SIZE      (8*1024)
@@ -303,6 +305,11 @@ netfs_attempt_lookup (struct iouser * user, struct node * dir,
     {
       *node = 0;
       pthread_mutex_unlock (&dir->lock);
+    }
+  else
+    {
+      /* Update the node cache */
+      node_cache (*node);
     }
 
   return err;
