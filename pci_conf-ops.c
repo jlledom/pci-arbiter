@@ -26,6 +26,7 @@
 
 #include <pci_arbiter.h>
 #include <pci_access.h>
+#include <netfs_impl.h>
 
 /*
  * Read min(amount,*datalen) bytes and store them on `*data'.
@@ -38,12 +39,17 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
 		 mach_msg_type_number_t amount)
 {
   error_t err;
+  struct node *node;
+  pthread_mutex_t *lock;
 
   if (!master)
     return EOPNOTSUPP;
 
+  node = master->po->np;
+  lock = &node->nn->fs->pci_conf_lock;
+
   err =
-    netfs_check_open_permissions (master->user, master->po->np, O_READ, 0);
+    netfs_check_open_permissions (master->user, node, O_READ, 0);
   if (err)
     return EPERM;
 
@@ -54,7 +60,13 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
   if (amount > *datalen)
     amount = *datalen;
 
+  /*
+   * The server is not single-threaded anymore. Incoming rpcs are handled by
+   * libnetfs which is multi-threaded. A lock is needed for arbitration.
+   */
+  pthread_mutex_lock (lock);
   err = pci_ifc->read (bus, dev, func, reg, *data, amount);
+  pthread_mutex_unlock (lock);
 
   if (!err)
     *datalen = amount;
@@ -69,16 +81,23 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
 		  mach_msg_type_number_t * amount)
 {
   error_t err;
+  struct node *node;
+  pthread_mutex_t *lock;
 
   if (!master)
     return EOPNOTSUPP;
 
+  node = master->po->np;
+  lock = &node->nn->fs->pci_conf_lock;
+
   err =
-    netfs_check_open_permissions (master->user, master->po->np, O_WRITE, 0);
+    netfs_check_open_permissions (master->user, node, O_WRITE, 0);
   if (err)
     return EPERM;
 
+  pthread_mutex_lock (lock);
   err = pci_ifc->write (bus, dev, func, reg, data, datalen);
+  pthread_mutex_unlock (lock);
 
   *amount = datalen;
 

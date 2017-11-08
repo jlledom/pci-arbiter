@@ -79,6 +79,9 @@ main (int argc, char **argv)
   if (err)
     error (1, err, "Initializing libnetfs");
 
+  /* Initialize the lock for incoming pci_conf rpcs */
+  pthread_mutex_init (&fs->pci_conf_lock, 0);
+
   /* Starts the PCI system, also creates the fs tree */
   err = pci_system_init ();
   if (err)

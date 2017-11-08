@@ -45,6 +45,9 @@ struct pcifs
   struct node *node_cache_mru, *node_cache_lru;
   size_t node_cache_len;	/* Number of entries in it.  */
   pthread_mutex_t node_cache_lock;
+
+  /* Lock for pci_conf operations */
+  pthread_mutex_t pci_conf_lock;
 };
 
 struct pcifs *fs;
