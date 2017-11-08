@@ -414,7 +414,7 @@ pci_system_x86_create (void)
   device = fs->root->nn->ln + 1;
   domain = 0;
   memset (entry_name, 0, NAME_SIZE);
-  snprintf (entry_name, NAME_SIZE, "%04d", domain);
+  snprintf (entry_name, NAME_SIZE, "%04x", domain);
   ret = create_dir_entry (domain, -1, -1, -1, -1, entry_name, cur_parent,
 			  cur_parent->stat, 0, device);
   if (ret)
@@ -451,7 +451,7 @@ pci_system_x86_create (void)
 		{
 		  /* Add entry for bus */
 		  memset (entry_name, 0, NAME_SIZE);
-		  snprintf (entry_name, NAME_SIZE, "%02d", bus);
+		  snprintf (entry_name, NAME_SIZE, "%02x", bus);
 		  ret =
 		    create_dir_entry (domain, bus, -1, -1, -1, entry_name,
 				      cur_parent, cur_parent->stat, 0,
@@ -468,7 +468,7 @@ pci_system_x86_create (void)
 		{
 		  /* Add entry for dev */
 		  memset (entry_name, 0, NAME_SIZE);
-		  snprintf (entry_name, NAME_SIZE, "%02d", dev);
+		  snprintf (entry_name, NAME_SIZE, "%02x", dev);
 		  ret =
 		    create_dir_entry (domain, bus, dev, -1, -1, entry_name,
 				      cur_parent, cur_parent->stat, 0,
@@ -484,7 +484,7 @@ pci_system_x86_create (void)
 
 	      /* Func entry */
 	      memset (entry_name, 0, NAME_SIZE);
-	      snprintf (entry_name, NAME_SIZE, "%01d", func);
+	      snprintf (entry_name, NAME_SIZE, "%01u", func);
 	      ret =
 		create_dir_entry (domain, bus, dev, func, reg >> 8,
 				  entry_name, cur_parent, cur_parent->stat, 0,
