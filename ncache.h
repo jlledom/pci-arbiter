@@ -17,7 +17,7 @@
    along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* Header for utility functions */
+/* Header for node caching functions */
 
 #ifndef NCACHE_H
 #define NCACHE_H
