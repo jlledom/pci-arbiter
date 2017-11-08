@@ -28,6 +28,33 @@
 #include <pci_access.h>
 #include <netfs_impl.h>
 
+static error_t
+check_permissions (struct protid *master, int bus, int dev, int func,
+		   int flags)
+{
+  error_t err = 0;
+  struct node *node;
+  struct pci_dirent *e;
+
+  node = master->po->np;
+  e = node->nn->ln;
+
+  /* Check wheter the user has permissions to access this node */
+  err = netfs_check_open_permissions (master->user, node, flags, 0);
+  if (err)
+    return err;
+
+  /* Check wheter the request has been sent to the proper node */
+  if (e->bus >= 0 && bus != e->bus)
+    err = EPERM;
+  if (e->dev >= 0 && dev != e->dev)
+    err = EPERM;
+  if (e->func >= 0 && func != e->func)
+    err = EPERM;
+
+  return err;
+}
+
 /*
  * Read min(amount,*datalen) bytes and store them on `*data'.
  *
@@ -39,19 +66,16 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
 		 mach_msg_type_number_t amount)
 {
   error_t err;
-  struct node *node;
   pthread_mutex_t *lock;
 
   if (!master)
     return EOPNOTSUPP;
 
-  node = master->po->np;
-  lock = &node->nn->fs->pci_conf_lock;
+  lock = &master->po->np->nn->fs->pci_conf_lock;
 
-  err =
-    netfs_check_open_permissions (master->user, node, O_READ, 0);
+  err = check_permissions (master, bus, dev, func, O_READ);
   if (err)
-    return EPERM;
+    return err;
 
   /*
    * We don't allocate new memory since we expect no more than 4 bytes-long
@@ -81,19 +105,16 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
 		  mach_msg_type_number_t * amount)
 {
   error_t err;
-  struct node *node;
   pthread_mutex_t *lock;
 
   if (!master)
     return EOPNOTSUPP;
 
-  node = master->po->np;
-  lock = &node->nn->fs->pci_conf_lock;
+  lock = &master->po->np->nn->fs->pci_conf_lock;
 
-  err =
-    netfs_check_open_permissions (master->user, node, O_WRITE, 0);
+  err = check_permissions (master, bus, dev, func, O_WRITE);
   if (err)
-    return EPERM;
+    return err;
 
   pthread_mutex_lock (lock);
   err = pci_ifc->write (bus, dev, func, reg, data, datalen);
