@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2017 Free Software Foundation, Inc.
-
+   Written by Miles Bader <miles@gnu.org>
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or

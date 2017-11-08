@@ -1,7 +1,6 @@
 /*
    Copyright (C) 2017 Free Software Foundation, Inc.
-
-   Written by Michael I. Bushnell, p/BSG.
+   Written by Miles Bader <miles@gnu.org>
 
    This file is part of the GNU Hurd.
 
