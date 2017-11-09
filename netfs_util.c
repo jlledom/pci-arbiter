@@ -21,6 +21,7 @@
 
 #include <netfs_util.h>
 
+#include <stdio.h>
 #include <hurd/netfs.h>
 #include <string.h>
 #include <unistd.h>
@@ -28,7 +29,7 @@
 
 #include <pci_arbiter.h>
 
-error_t
+static error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 		  int16_t func, int32_t device_class, char *name,
 		  struct pci_dirent *parent, io_statbuf_t stat,
@@ -123,6 +124,105 @@ create_file_system (file_t underlying_node, struct pcifs ** fs)
   nn->fs = *fs;
 
   return 0;
+}
+
+error_t
+create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
+{
+  error_t err = 0;
+  int c_domain, c_bus, c_dev, i;
+  size_t nentries;
+  struct pci_device *device;
+  struct pci_dirent *e, *domain_parent, *bus_parent, *dev_parent, *list;
+  char entry_name[NAME_SIZE];
+
+  nentries = 2;			/* Skip root and domain entries */
+  c_bus = c_dev = -1;
+  for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices; i++)
+    {
+      if (device->bus != c_bus)
+	{
+	  c_bus = device->bus;
+	  nentries++;
+	}
+
+      if (device->dev != c_dev)
+	{
+	  c_bus = device->bus;
+	  nentries++;
+	}
+
+      nentries++;
+    }
+
+  list = realloc (fs->root->nn->ln, nentries * sizeof (struct pci_dirent));
+  if (!list)
+    return ENOMEM;
+
+  /* Add an entry for domain = 0. We still don't support PCI express */
+  e = list + 1;
+  c_domain = 0;
+  memset (entry_name, 0, NAME_SIZE);
+  snprintf (entry_name, NAME_SIZE, "%04x", c_domain);
+  err = create_dir_entry (c_domain, -1, -1, -1, -1, entry_name, list,
+			  list->stat, 0, e);
+  if (err)
+    return err;
+
+  c_bus = c_dev = -1;
+  domain_parent = e++;
+  for (i = 0, device = pci_sys->devices; i <= pci_sys->num_devices; i++)
+    {
+      if (device->bus != c_bus)
+	{
+	  /* We've found a new bus. Add entry for it */
+	  memset (entry_name, 0, NAME_SIZE);
+	  snprintf (entry_name, NAME_SIZE, "%02x", device->bus);
+	  err =
+	    create_dir_entry (c_domain, device->bus, -1, -1, -1, entry_name,
+			      domain_parent, domain_parent->stat, 0, e);
+	  if (err)
+	    return err;
+
+	  /* Switch to dev level */
+	  bus_parent = e++;
+	  c_bus = device->bus;
+	  c_dev = -1;
+	}
+
+      if (device->dev != c_dev)
+	{
+	  /* We've found a new dev. Add entry for it */
+	  memset (entry_name, 0, NAME_SIZE);
+	  snprintf (entry_name, NAME_SIZE, "%02x", device->dev);
+	  err =
+	    create_dir_entry (c_domain, device->bus, device->dev, -1, -1,
+			      entry_name, bus_parent, bus_parent->stat, 0, e);
+	  if (err)
+	    return err;
+
+	  /* Switch to func level */
+	  dev_parent = e++;
+	  c_dev = device->dev;
+	}
+
+      /* Add func entry */
+      memset (entry_name, 0, NAME_SIZE);
+      snprintf (entry_name, NAME_SIZE, "%01u", device->func);
+      err =
+	create_dir_entry (c_domain, device->bus, device->dev, device->func,
+			  device->device_class, entry_name, dev_parent,
+			  dev_parent->stat, 0, e++);
+      if (err)
+	return err;
+
+      device++;
+    }
+
+  /* The root node points to the first element of the entry list */
+  fs->root->nn->ln = list;
+
+  return err;
 }
 
 error_t

@@ -75,17 +75,24 @@ main (int argc, char **argv)
 
   /* Initialize netfs and start the translator. */
   netfs_init ();
+
+  /* Start the PCI system */
+  err = pci_system_init ();
+  if (err)
+    error (1, err, "Starting the PCI system");
+
+  /* Create the PCI filesystem */
   err = create_file_system (netfs_startup (bootstrap, O_READ), &fs);
   if (err)
-    error (1, err, "Initializing libnetfs");
+    error (1, err, "Creating the PCI filesystem");
+
+  /* Create the filesystem tree */
+  err = create_fs_tree (fs, pci_sys);
+  if (err)
+    error (1, err, "Creating the PCI filesystem tree");
 
   /* Initialize the lock for incoming pci_conf rpcs */
   pthread_mutex_init (&fs->pci_conf_lock, 0);
-
-  /* Starts the PCI system, also creates the fs tree */
-  err = pci_system_init ();
-  if (err)
-    error (1, err, "Error starting the PCI system");
 
   netfs_server_loop ();		/* Never returns.  */
 

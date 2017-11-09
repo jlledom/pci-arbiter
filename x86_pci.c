@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2017 Joan Lledó
  * Copyright (c) 2009, 2012 Samuel Thibault
  * Heavily inspired from the freebsd, netbsd, and openbsd backends
  * (C) Copyright Eric Anholt 2006
@@ -34,27 +33,13 @@
 #include <x86_pci.h>
 
 #include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <string.h>
-#include <strings.h>
 #include <sys/io.h>
 
 #include <pci_access.h>
-#include <netfs_impl.h>
-#include <netfs_util.h>
-
-/* Tree levels */
-enum tree_level
-{
-  LEVEL_NONE,
-  LEVEL_BUS,
-  LEVEL_DEV,
-  LEVEL_FUNC
-};
 
 static int
 x86_enable_io (void)
@@ -270,7 +255,7 @@ pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
 
 /* Check that this really looks like a PCI configuration. */
 static int
-pci_system_x86_check (struct pci_iface *pci_ifc)
+pci_system_x86_check (struct pci_system *pci_sys)
 {
   int dev;
   uint16_t class, vendor;
@@ -280,11 +265,11 @@ pci_system_x86_check (struct pci_iface *pci_ifc)
 
   for (dev = 0; dev < 32; dev++)
     {
-      if (pci_ifc->read (0, dev, 0, PCI_CLASS_DEVICE, &class, sizeof (class)))
+      if (pci_sys->read (0, dev, 0, PCI_CLASS_DEVICE, &class, sizeof (class)))
 	continue;
       if (class == PCI_CLASS_BRIDGE_HOST || class == PCI_CLASS_DISPLAY_VGA)
 	return 0;
-      if (pci_ifc->read (0, dev, 0, PCI_VENDOR_ID, &vendor, sizeof (vendor)))
+      if (pci_sys->read (0, dev, 0, PCI_VENDOR_ID, &vendor, sizeof (vendor)))
 	continue;
       if (vendor == PCI_VENDOR_ID_INTEL || class == PCI_VENDOR_ID_COMPAQ)
 	return 0;
@@ -294,21 +279,21 @@ pci_system_x86_check (struct pci_iface *pci_ifc)
 }
 
 static int
-pci_probe (struct pci_iface *pci_ifc)
+pci_probe (struct pci_system *pci_sys)
 {
   if (pci_system_x86_conf1_probe () == 0)
     {
-      pci_ifc->read = pci_system_x86_conf1_read;
-      pci_ifc->write = pci_system_x86_conf1_write;
-      if (pci_system_x86_check (pci_ifc) == 0)
+      pci_sys->read = pci_system_x86_conf1_read;
+      pci_sys->write = pci_system_x86_conf1_write;
+      if (pci_system_x86_check (pci_sys) == 0)
 	return 0;
     }
 
   if (pci_system_x86_conf2_probe () == 0)
     {
-      pci_ifc->read = pci_system_x86_conf2_read;
-      pci_ifc->write = pci_system_x86_conf2_write;
-      if (pci_system_x86_check (pci_ifc) == 0)
+      pci_sys->read = pci_system_x86_conf2_read;
+      pci_sys->write = pci_system_x86_conf2_write;
+      if (pci_system_x86_check (pci_sys) == 0)
 	return 0;
     }
 
@@ -316,12 +301,12 @@ pci_probe (struct pci_iface *pci_ifc)
 }
 
 static int
-pci_nfuncs (int bus, int dev)
+pci_nfuncs (struct pci_system *pci_sys, int bus, int dev)
 {
   uint8_t hdr;
   int err;
 
-  err = pci_ifc->read (bus, dev, 0, PCI_HDRTYPE, &hdr, sizeof (hdr));
+  err = pci_sys->read (bus, dev, 0, PCI_HDRTYPE, &hdr, sizeof (hdr));
 
   if (err)
     return err;
@@ -332,180 +317,86 @@ pci_nfuncs (int bus, int dev)
 int
 pci_system_x86_create (void)
 {
-  struct pci_dirent *device, *cur_parent;
-  int ret, domain, bus, dev, nentries, func, nfuncs;
-  enum tree_level level;
-  char entry_name[NAME_SIZE];
+  struct pci_device *device;
+  int ret, bus, dev, ndevs, func, nfuncs;
   uint32_t reg;
 
   ret = x86_enable_io ();
   if (ret)
     return ret;
 
-  pci_ifc = calloc (1, sizeof (struct pci_iface));
-  if (pci_ifc == NULL)
+  pci_sys = calloc (1, sizeof (struct pci_system));
+  if (pci_sys == NULL)
     {
       x86_disable_io ();
       return ENOMEM;
     }
 
-  ret = pci_probe (pci_ifc);
+  ret = pci_probe (pci_sys);
   if (ret)
     {
       x86_disable_io ();
-      free (pci_ifc);
+      free (pci_sys);
       return ret;
     }
 
-  /*
-   * First, count how many directory entries will we need.
-   *
-   * Start from 2, for root and domain entries.
-   */
-  nentries = 2;
-  level = LEVEL_BUS;		/* Start on bus level */
+  ndevs = 0;
   for (bus = 0; bus < 256; bus++)
     {
       for (dev = 0; dev < 32; dev++)
 	{
-	  nfuncs = pci_nfuncs (bus, dev);
+	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
 	  for (func = 0; func < nfuncs; func++)
 	    {
-	      if (pci_ifc->read (bus, dev, func, PCI_VENDOR_ID, &reg,
-				 sizeof (reg)) != 0)
+	      if (pci_sys->
+		  read (bus, dev, func, PCI_VENDOR_ID, &reg,
+			sizeof (reg)) != 0)
 		continue;
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
 		continue;
-	      if (level == LEVEL_BUS)
-		level++;
-	      if (level == LEVEL_DEV)
-		level++;
-	      nentries++;
+	      ndevs++;
 	    }
-	  if (level == LEVEL_FUNC)
-	    {
-	      nentries++;
-	      level--;
-	    }
-	}
-      if (level == LEVEL_DEV)
-	{
-	  nentries++;
-	  level--;
 	}
     }
 
-  /*
-   * At this point, `fs->root->nn->ln' contains the root entry only.
-   * Resize it to fit all entries.
-   */
-  fs->root->nn->ln =
-    realloc (fs->root->nn->ln, (nentries) * sizeof (struct pci_dirent));
-  if (fs->root->nn->ln == NULL)
+  pci_sys->num_devices = ndevs;
+  pci_sys->devices = calloc (ndevs, sizeof (struct pci_device));
+  if (pci_sys->devices == NULL)
     {
       x86_disable_io ();
-      free (pci_ifc);
+      free (pci_sys);
+      pci_sys = NULL;
       return ENOMEM;
     }
 
-  /* Add an entry for domain = 0. We still don't support PCI express */
-  cur_parent = fs->root->nn->ln;
-  device = fs->root->nn->ln + 1;
-  domain = 0;
-  memset (entry_name, 0, NAME_SIZE);
-  snprintf (entry_name, NAME_SIZE, "%04x", domain);
-  ret = create_dir_entry (domain, -1, -1, -1, -1, entry_name, cur_parent,
-			  cur_parent->stat, 0, device);
-  if (ret)
-    return ret;
-
-  /* Entering bus level. */
-  level = LEVEL_BUS;
-  cur_parent = device;
-  device++;
+  device = pci_sys->devices;
   for (bus = 0; bus < 256; bus++)
     {
       for (dev = 0; dev < 32; dev++)
 	{
-	  nfuncs = pci_nfuncs (bus, dev);
+	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
 	  for (func = 0; func < nfuncs; func++)
 	    {
-	      if (pci_ifc->read (bus, dev, func, PCI_VENDOR_ID, &reg,
-				 sizeof (reg)) != 0)
+	      if (pci_sys->
+		  read (bus, dev, func, PCI_VENDOR_ID, &reg,
+			sizeof (reg)) != 0)
 		continue;
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
 		continue;
-	      if (pci_ifc->read
-		  (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
+	      device->domain = 0;
+	      device->bus = bus;
+	      device->dev = dev;
+	      device->func = func;
+
+	      if (pci_sys->
+		  read (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
 		continue;
-
-	      /*
-	       * This address contains a valid device.
-	       *
-	       * Add intermediate level entries and switch to lower levels
-	       * only when a valid device is found.
-	       */
-	      if (level == LEVEL_BUS)
-		{
-		  /* Add entry for bus */
-		  memset (entry_name, 0, NAME_SIZE);
-		  snprintf (entry_name, NAME_SIZE, "%02x", bus);
-		  ret =
-		    create_dir_entry (domain, bus, -1, -1, -1, entry_name,
-				      cur_parent, cur_parent->stat, 0,
-				      device);
-		  if (ret)
-		    return ret;
-
-		  /* Switch to dev level */
-		  cur_parent = device;
-		  device++;
-		  level++;
-		}
-	      if (level == LEVEL_DEV)
-		{
-		  /* Add entry for dev */
-		  memset (entry_name, 0, NAME_SIZE);
-		  snprintf (entry_name, NAME_SIZE, "%02x", dev);
-		  ret =
-		    create_dir_entry (domain, bus, dev, -1, -1, entry_name,
-				      cur_parent, cur_parent->stat, 0,
-				      device);
-		  if (ret)
-		    return ret;
-
-		  /* Switch to func level */
-		  cur_parent = device;
-		  device++;
-		  level++;
-		}
-
-	      /* Func entry */
-	      memset (entry_name, 0, NAME_SIZE);
-	      snprintf (entry_name, NAME_SIZE, "%01u", func);
-	      ret =
-		create_dir_entry (domain, bus, dev, func, reg >> 8,
-				  entry_name, cur_parent, cur_parent->stat, 0,
-				  device);
-	      if (ret)
-		return ret;
+	      device->device_class = reg >> 8;
 
 	      device++;
 	    }
-	  if (level == LEVEL_FUNC)
-	    {
-	      /* Switch to dev level */
-	      cur_parent = cur_parent->parent;
-	      level--;
-	    }
-	}
-      if (level == LEVEL_DEV)
-	{
-	  /* Switch to bus level */
-	  cur_parent = cur_parent->parent;
-	  level--;
 	}
     }
 

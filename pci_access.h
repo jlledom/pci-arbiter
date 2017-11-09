@@ -63,16 +63,45 @@
 
 typedef uint64_t pciaddr_t;
 
-/* Common interface */
-struct pci_iface
+/*
+ * PCI device.
+ *
+ * Contains all of the information about a particular PCI device.
+ */
+struct pci_device
 {
+  /*
+   * Complete bus identification, including domain, of the device.  On
+   * platforms that do not support PCI domains (e.g., 32-bit x86 hardware),
+   * the domain will always be zero.
+   */
+  uint16_t domain;
+  uint8_t bus;
+  uint8_t dev;
+  uint8_t func;
+
+  /*
+   * Device's class, subclass, and programming interface packed into a
+   * single 32-bit value.  The class is at bits [23:16], subclass is at
+   * bits [15:8], and programming interface is at [7:0].
+   */
+  uint32_t device_class;
+};
+
+/* Global PCI data */
+struct pci_system
+{
+  size_t num_devices;
+  struct pci_device *devices;
+
+  /* Callbacks */
   int (*read) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg,
 	       void *data, unsigned size);
   int (*write) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg,
 		const void *data, unsigned size);
 };
 
-struct pci_iface *pci_ifc;
+struct pci_system *pci_sys;
 
 int pci_system_init (void);
 

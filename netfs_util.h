@@ -24,13 +24,11 @@
 
 #include <hurd/netfs.h>
 
+#include <pci_access.h>
 #include <netfs_impl.h>
 
-error_t create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
-			  int16_t func, int32_t device_class, char *name,
-			  struct pci_dirent * parent, io_statbuf_t stat,
-			  struct node * node, struct pci_dirent * entry);
 error_t create_file_system (file_t underlying_node, struct pcifs **root_node);
+error_t create_fs_tree (struct pcifs *fs, struct pci_system *pci_sys);
 error_t create_node (struct pci_dirent *e, struct node **node);
 void destroy_node (struct node *node);
 

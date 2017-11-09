@@ -91,7 +91,7 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
    * libnetfs which is multi-threaded. A lock is needed for arbitration.
    */
   pthread_mutex_lock (lock);
-  err = pci_ifc->read (bus, dev, func, reg, *data, amount);
+  err = pci_sys->read (bus, dev, func, reg, *data, amount);
   pthread_mutex_unlock (lock);
 
   if (!err)
@@ -119,7 +119,7 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     return err;
 
   pthread_mutex_lock (lock);
-  err = pci_ifc->write (bus, dev, func, reg, data, datalen);
+  err = pci_sys->write (bus, dev, func, reg, data, datalen);
   pthread_mutex_unlock (lock);
 
   *amount = datalen;
