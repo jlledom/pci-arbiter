@@ -80,8 +80,8 @@ static const struct argp_option options[] = {
   {"dev", 'd', "DEV", 0, "Device dev in hexadecimal, only valid with -b"},
   {"func", 'f', "FUNC", 0, "Device func in hexadecimal, only valid with -d"},
   {0, 0, 0, 0, "These apply to a given permission scope:", 2},
-  {"uid", 'u', "UID", 0, "User ID to give permissions to"},
-  {"gid", 'g', "GID", 0, "Group ID to give permissions to"},
+  {"uid", 'U', "UID", 0, "User ID to give permissions to"},
+  {"gid", 'G', "GID", 0, "Group ID to give permissions to"},
   {0, 0, 0, 0, "Global configuration options:", 3},
   {"ncache", 'n', "LENGTH", 0, "Node cache length. 16 by default"},
   {0}

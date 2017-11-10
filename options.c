@@ -125,7 +125,6 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       h->curset->d_subclass = strtol (arg, 0, 16);
       break;
     case 'D':
-      /* Init a new set if the current one already has a value for this option */
       if (h->curset->domain >= 0)
 	parse_hook_add_set (h);
 
@@ -140,10 +139,16 @@ parse_opt (int opt, char *arg, struct argp_state *state)
     case 'f':
       h->curset->func = strtol (arg, 0, 16);
       break;
-    case 'u':
+    case 'U':
+      if (h->curset->uid > 0)
+	parse_hook_add_set (h);
+
       h->curset->uid = atoi (arg);
       break;
-    case 'g':
+    case 'G':
+      if (h->curset->gid > 0)
+	parse_hook_add_set (h);
+
       h->curset->gid = atoi (arg);
       break;
     case 'n':
