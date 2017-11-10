@@ -19,12 +19,11 @@
 
 /* Translator initialization and demuxing */
 
-#include <pci_arbiter.h>
-
 #include <stdio.h>
 #include <error.h>
 #include <fcntl.h>
 #include <version.h>
+#include <argp.h>
 #include <hurd/netfs.h>
 
 #include <pci_conf_S.h>
@@ -35,7 +34,7 @@
 #include "libports/interrupt_S.h"
 #include "libnetfs/ifsock_S.h"
 #include <pci_access.h>
-#include <netfs_util.h>
+#include <pcifs.h>
 
 
 /* Libnetfs stuff */
@@ -69,6 +68,10 @@ main (int argc, char **argv)
   error_t err;
   mach_port_t bootstrap;
 
+  /* Parse options */
+  alloc_file_system (&fs);
+  argp_parse (netfs_runtime_argp, argc, argv, 0, 0, 0);
+
   task_get_bootstrap_port (mach_task_self (), &bootstrap);
   if (bootstrap == MACH_PORT_NULL)
     error (1, 0, "must be started as a translator");
@@ -82,7 +85,7 @@ main (int argc, char **argv)
     error (1, err, "Starting the PCI system");
 
   /* Create the PCI filesystem */
-  err = create_file_system (netfs_startup (bootstrap, O_READ), &fs);
+  err = init_file_system (netfs_startup (bootstrap, O_READ), fs);
   if (err)
     error (1, err, "Creating the PCI filesystem");
 
@@ -90,6 +93,11 @@ main (int argc, char **argv)
   err = create_fs_tree (fs, pci_sys);
   if (err)
     error (1, err, "Creating the PCI filesystem tree");
+
+  /* Set permissions */
+  err = fs_set_permissions (fs);
+  if (err)
+    error (1, err, "Setting permissions");
 
   /* Initialize the lock for incoming pci_conf rpcs */
   pthread_mutex_init (&fs->pci_conf_lock, 0);

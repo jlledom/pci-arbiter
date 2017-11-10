@@ -17,9 +17,9 @@
    along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* Utility functions */
+/* PCI Filesystem implementation */
 
-#include <netfs_util.h>
+#include <pcifs.h>
 
 #include <stdio.h>
 #include <hurd/netfs.h>
@@ -27,13 +27,13 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include <pci_arbiter.h>
+#include <ncache.h>
 
 static error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 		  int16_t func, int32_t device_class, char *name,
-		  struct pci_dirent *parent, io_statbuf_t stat,
-		  struct node *node, struct pci_dirent *entry)
+		  struct pcifs_dirent *parent, io_statbuf_t stat,
+		  struct node *node, struct pcifs_dirent *entry)
 {
   uint16_t parent_num_entries;
 
@@ -53,7 +53,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
       if (!entry->parent->dir)
 	{
 	  /* First child */
-	  entry->parent->dir = calloc (1, sizeof (struct pci_dir));
+	  entry->parent->dir = calloc (1, sizeof (struct pcifs_dir));
 	  if (!entry->parent->dir)
 	    return ENOMEM;
 	}
@@ -61,7 +61,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
       parent_num_entries = entry->parent->dir->num_entries++;
       entry->parent->dir->entries = realloc (entry->parent->dir->entries,
 					     entry->parent->dir->num_entries *
-					     sizeof (struct pci_dirent *));
+					     sizeof (struct pcifs_dirent *));
       if (!entry->parent->dir->entries)
 	return ENOMEM;
       entry->parent->dir->entries[parent_num_entries] = entry;
@@ -71,11 +71,20 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 }
 
 error_t
-create_file_system (file_t underlying_node, struct pcifs ** fs)
+alloc_file_system (struct pcifs ** fs)
+{
+  *fs = calloc (1, sizeof (struct pcifs));
+  if (!*fs)
+    return ENOMEM;
+
+  return 0;
+}
+
+error_t
+init_file_system (file_t underlying_node, struct pcifs * fs)
 {
   error_t err;
   struct node *np;
-  struct netnode *nn;
   io_statbuf_t underlying_node_stat;
 
   /* Initialize status from underlying node.  */
@@ -104,24 +113,22 @@ create_file_system (file_t underlying_node, struct pcifs ** fs)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
-  nn = netfs_node_netnode (np);
-  nn->ln = calloc (1, sizeof (struct pci_dirent));
-  if (!nn->ln)
+  fs->entries = calloc (1, sizeof (struct pcifs_dirent));
+  if (!fs->entries)
     {
-      free (np);
+      free (fs->entries);
       return ENOMEM;
     }
 
-  err = create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np, nn->ln);
+  err =
+    create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np,
+		      fs->entries);
 
-  *fs = calloc (1, sizeof (struct pcifs));
-  if (!*fs)
-    return ENOMEM;
-
-  (*fs)->root = netfs_root_node = np;
-  (*fs)->params.node_cache_max = 16;
-  pthread_mutex_init (&(*fs)->node_cache_lock, 0);
-  nn->fs = *fs;
+  fs->num_entries = 1;
+  fs->root = netfs_root_node = np;
+  fs->root->nn->ln = fs->entries;
+  fs->params.node_cache_max = 16;
+  pthread_mutex_init (&fs->node_cache_lock, 0);
 
   return 0;
 }
@@ -133,7 +140,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   int c_domain, c_bus, c_dev, i;
   size_t nentries;
   struct pci_device *device;
-  struct pci_dirent *e, *domain_parent, *bus_parent, *dev_parent, *list;
+  struct pcifs_dirent *e, *domain_parent, *bus_parent, *dev_parent, *list;
   char entry_name[NAME_SIZE];
 
   nentries = 2;			/* Skip root and domain entries */
@@ -155,7 +162,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       nentries++;
     }
 
-  list = realloc (fs->root->nn->ln, nentries * sizeof (struct pci_dirent));
+  list = realloc (fs->entries, nentries * sizeof (struct pcifs_dirent));
   if (!list)
     return ENOMEM;
 
@@ -171,7 +178,8 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 
   c_bus = c_dev = -1;
   domain_parent = e++;
-  for (i = 0, device = pci_sys->devices; i <= pci_sys->num_devices; i++)
+  for (i = 0, device = pci_sys->devices; i <= pci_sys->num_devices;
+       i++, device++)
     {
       if (device->bus != c_bus)
 	{
@@ -215,18 +223,70 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 			  dev_parent->stat, 0, e++);
       if (err)
 	return err;
-
-      device++;
     }
 
   /* The root node points to the first element of the entry list */
-  fs->root->nn->ln = list;
+  fs->entries = list;
+  fs->num_entries = nentries;
+  fs->root->nn->ln = fs->entries;
 
   return err;
 }
 
+static void
+entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
+{
+  int i;
+  struct pcifs_perm *perms = fs->params.perms, *p;
+  size_t num_perms = fs->params.num_perms;
+
+  for (i = 0, p = perms; i < num_perms; i++, p++)
+    {
+      uint8_t e_class = e->device_class >> 16;
+      uint8_t e_subclass = ((e->device_class >> 8) & 0xFF);
+
+      /* Check whether the entry is convered by this permission scope */
+      if (p->d_class >= 0 && e_class != p->d_class)
+	continue;
+      if (p->d_subclass >= 0 && e_subclass != p->d_subclass)
+	continue;
+      if (p->domain >= 0 && p->domain != e->domain)
+	continue;
+      if (p->bus >= 0 && e->bus != p->bus)
+	continue;
+      if (p->dev >= 0 && e->dev != p->dev)
+	continue;
+      if (p->func >= 0 && e->func != p->func)
+	continue;
+
+      /* This permission set covers this entry */
+      if (p->uid >= 0)
+	e->stat.st_uid = p->uid;
+      if (p->gid >= 0)
+	e->stat.st_gid = p->gid;
+
+      /* Break, as only one permission set can cover each node */
+      break;
+    }
+
+  return;
+}
+
 error_t
-create_node (struct pci_dirent * e, struct node ** node)
+fs_set_permissions (struct pcifs * fs)
+{
+  int i;
+  struct pcifs_dirent *e;
+
+  for (i = 0, e = fs->entries; i < fs->num_entries; i++, e++)
+    /* Set new permissions, if any */
+    entry_set_perms (fs, e);
+
+  return 0;
+}
+
+error_t
+create_node (struct pcifs_dirent * e, struct node ** node)
 {
   struct node *np;
   struct netnode *nn;
@@ -240,7 +300,6 @@ create_node (struct pci_dirent * e, struct node ** node)
   nn = netfs_node_netnode (np);
   memset (nn, 0, sizeof (struct netnode));
   nn->ln = e;
-  nn->fs = fs;
 
   *node = e->node = np;
 

@@ -24,68 +24,7 @@
 
 #include <hurd/netfs.h>
 
-#include <pci_arbiter.h>
-
-#ifndef NAME_SIZE
-#define NAME_SIZE 16
-#endif
-
-/* 
- * Directory entriy. Contains all per-node data our problem requires.
- * 
- * All directory entries are created on startup and used to generate the
- * fs tree and create or retrieve libnetfs node objects.
- * 
- * From libnetfs' point of view, these are the light nodes.
- */
-struct pci_dirent
-{
-  /*
-   * Complete bus identification, including domain, of the device.  On
-   * platforms that do not support PCI domains (e.g., 32-bit x86 hardware),
-   * the domain will always be zero.
-   * 
-   * Negative value means no value.
-   */
-  int32_t domain;
-  int16_t bus;
-  int16_t dev;
-  int8_t func;
-
-  /*
-   * Device's class, subclass, and programming interface packed into a
-   * single 32-bit value.  The class is at bits [23:16], subclass is at
-   * bits [15:8], and programming interface is at [7:0].
-   * 
-   * Negative value means no value.
-   */
-  int32_t device_class;
-
-  char name[NAME_SIZE];
-  struct pci_dirent *parent;
-  io_statbuf_t stat;
-
-  /*
-   * We only need two kind of nodes: files and directories.
-   * When `dir' is null, this is a file; when not null, it's a directory.
-   */
-  struct pci_dir *dir;
-
-  /* Active node on this entry */
-  struct node *node;
-};
-
-/*
- * A directory, it only contains a list of directory entries
- */
-struct pci_dir
-{
-  /* Number of directory entries */
-  uint16_t num_entries;
-
-  /* Array of directory entries */
-  struct pci_dirent **entries;
-};
+#include <pcifs.h>
 
 /*
  * A netnode has a 1:1 relation with a generic libnetfs node. Hence, it's only
@@ -94,11 +33,8 @@ struct pci_dir
  */
 struct netnode
 {
-  /* The pci filesystem.  */
-  struct pcifs *fs;
-
   /* Light node */
-  struct pci_dirent *ln;
+  struct pcifs_dirent *ln;
 
   /* Position in the node cache.  */
   struct node *ncache_next, *ncache_prev;

@@ -24,7 +24,7 @@
 #include <fcntl.h>
 #include <hurd/netfs.h>
 
-#include <pci_arbiter.h>
+#include <pcifs.h>
 #include <pci_access.h>
 #include <netfs_impl.h>
 
@@ -34,7 +34,7 @@ check_permissions (struct protid *master, int bus, int dev, int func,
 {
   error_t err = 0;
   struct node *node;
-  struct pci_dirent *e;
+  struct pcifs_dirent *e;
 
   node = master->po->np;
   e = node->nn->ln;
@@ -73,7 +73,7 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
-  lock = &master->po->np->nn->fs->pci_conf_lock;
+  lock = &fs->pci_conf_lock;
 
   err = check_permissions (master, bus, dev, func, O_READ);
   if (err)
@@ -112,7 +112,7 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
-  lock = &master->po->np->nn->fs->pci_conf_lock;
+  lock = &fs->pci_conf_lock;
 
   err = check_permissions (master, bus, dev, func, O_WRITE);
   if (err)

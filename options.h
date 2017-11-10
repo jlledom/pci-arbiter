@@ -28,42 +28,17 @@
 #include <sys/types.h>
 #include <argp.h>
 
-/* Used to describe a particular set of permissions during argument parsing.  */
-struct parse_permset
-{
-  /*
-   * D/b/d/f scope of permissions.
-   * 
-   * Negative value means no value.
-   */
-  int32_t domain;
-  int16_t bus;
-  int16_t dev;
-  int8_t func;
-
-  /*
-   * Class and subclass scope of permissions
-   * 
-   * Negative value means no value.
-   */
-  int16_t d_class;
-  int16_t d_subclass;
-
-  /* User and group ids */
-  uid_t uid;
-  gid_t gid;
-};
+#include <pcifs.h>
 
 /* Used to hold data during argument parsing.  */
 struct parse_hook
 {
-  /* A list of specified interfaces and their corresponding options.  */
-  struct parse_permset *permsets;
+  /* A list of specified permission sets and their corresponding options.  */
+  struct pcifs_perm *permsets;
   size_t num_permsets;
 
-  /* Interface to which options apply.  If the device field isn't filled in
-     then it should be by the next --interface option.  */
-  struct parse_permset *curset;
+  /* Permission set to which options apply.  */
+  struct pcifs_perm *curset;
 
   /* Node cache length */
   size_t ncache_len;
@@ -89,6 +64,7 @@ static const struct argp_option options[] = {
 
 static const char doc[] = "More than one permission scope may be specified. \
 -D and -C create a new permission scope if the current one already has a value \
-for that option.";
+for that option. If one node is covered by more than one permission scope, \
+only the first permission is applied to that node.";
 
 #endif // OPTIONS_H

@@ -28,6 +28,8 @@
 #include <argz.h>
 #include <error.h>
 
+#include <pcifs.h>
+
 #define NCACHE_DEFAULT_LEN  16
 
 /* Fsysopts and command line option parsing */
@@ -37,9 +39,9 @@
 static error_t
 parse_hook_add_set (struct parse_hook *h)
 {
-  struct parse_permset *new = realloc (h->permsets,
+  struct pcifs_perm *new = realloc (h->permsets,
 				       (h->num_permsets +
-					1) * sizeof (struct parse_permset));
+					1) * sizeof (struct pcifs_perm));
   if (!new)
     return ENOMEM;
 
@@ -52,8 +54,8 @@ parse_hook_add_set (struct parse_hook *h)
   h->curset->func = -1;
   h->curset->d_class = -1;
   h->curset->d_subclass = -1;
-  h->curset->uid = 0;
-  h->curset->gid = 0;
+  h->curset->uid = -1;
+  h->curset->gid = -1;
 
   return 0;
 }
@@ -62,7 +64,7 @@ static error_t
 check_options_validity (struct parse_hook *h)
 {
   int i;
-  struct parse_permset *p;
+  struct pcifs_perm *p;
 
   for (p = h->permsets, i = 0; i < h->num_permsets; i++, p++)
     {
@@ -70,8 +72,11 @@ check_options_validity (struct parse_hook *h)
 	  || (p->dev >= 0 && p->bus < 0)
 	  || (p->bus >= 0 && p->domain < 0)
 	  || (p->d_subclass >= 0 && p->d_class < 0)
-	  || ((p->uid || p->gid) && (p->d_class < 0 && p->domain < 0))
-	  || ((p->d_class >= 0 || p->domain >= 0) && !(p->uid || p->gid)))
+	  || ((p->uid >= 0 || p->gid >= 0)
+	      && (p->d_class < 0 && p->domain < 0)) || ((p->d_class >= 0
+							 || p->domain >= 0)
+							&& !(p->uid >= 0
+							     || p->gid >= 0)))
 	error (1, EINVAL, "Option dependence error");
     }
 
@@ -140,13 +145,13 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       h->curset->func = strtol (arg, 0, 16);
       break;
     case 'U':
-      if (h->curset->uid > 0)
+      if (h->curset->uid >= 0)
 	parse_hook_add_set (h);
 
       h->curset->uid = atoi (arg);
       break;
     case 'G':
-      if (h->curset->gid > 0)
+      if (h->curset->gid >= 0)
 	parse_hook_add_set (h);
 
       h->curset->gid = atoi (arg);
@@ -159,6 +164,10 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       h = malloc (sizeof (struct parse_hook));
       if (!h)
 	FAIL (ENOMEM, 1, ENOMEM, "option parsing");
+
+      if (fs->root)
+	/* Free previous permissions if we-ve been called from fsysopts */
+	free (fs->params.perms);
 
       h->permsets = 0;
       h->num_permsets = 0;
@@ -174,11 +183,24 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       /* Check option dependencies */
       err = check_options_validity (h);
 
-      /* Do nothing for now */
+      /* Set permissions to FS */
+      fs->params.perms = h->permsets;
+      fs->params.num_perms = h->num_permsets;
+
+      if (fs->root)
+	/*
+	 * FS is already initialized, that means we've been called by fsysopts.
+	 * Update permissions.
+	 */
+	err = fs_set_permissions (fs);
+
+      /* Free the hook */
+      free (h);
+
       break;
 
     case ARGP_KEY_ERROR:
-      /* Parsing error occurred, free everything. */
+      /* Parsing error occurred, free the permissions. */
       free (h->permsets);
       free (h);
       break;

@@ -24,11 +24,11 @@
 #include <string.h>
 #include <hurd/netfs.h>
 
-#include <pci_arbiter.h>
+#include <pcifs.h>
 #include <netfs_impl.h>
 
 /* Remove NN's node from its position in FS's node cache.  */
-static void
+void
 node_unlink (struct node *node, struct pcifs *fs)
 {
   struct netnode *nn = node->nn;
@@ -51,7 +51,6 @@ void
 node_cache (struct node *node)
 {
   struct netnode *nn = node->nn;
-  struct pcifs *fs = nn->fs;
 
   pthread_mutex_lock (&fs->node_cache_lock);
 
@@ -70,7 +69,7 @@ node_cache (struct node *node)
 	  nn->ncache_prev = 0;
 	  if (fs->node_cache_mru)
 	    fs->node_cache_mru->nn->ncache_prev = node;
-	  if (! fs->node_cache_lru)
+	  if (!fs->node_cache_lru)
 	    fs->node_cache_lru = node;
 	  fs->node_cache_mru = node;
 	  fs->node_cache_len++;

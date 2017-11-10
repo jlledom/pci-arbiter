@@ -30,9 +30,8 @@
 #include <sys/mman.h>
 #include <hurd/netfs.h>
 
-#include <pci_arbiter.h>
+#include <pcifs.h>
 #include <ncache.h>
-#include <netfs_util.h>
 
 #define DIRENTS_CHUNK_SIZE      (8*1024)
 /* Returned directory entries are aligned to blocks this many bytes long.
@@ -48,12 +47,12 @@
 
 /* Fetch a directory, as for netfs_get_dirents.  */
 static error_t
-get_dirents (struct pci_dirent *dir,
+get_dirents (struct pcifs_dirent *dir,
 	     int first_entry, int max_entries, char **data,
 	     mach_msg_type_number_t * data_len,
 	     vm_size_t max_data_len, int *data_entries)
 {
-  struct pci_dirent *e;
+  struct pcifs_dirent *e;
   error_t err = 0;
   int i, count;
   size_t size;
@@ -116,11 +115,11 @@ get_dirents (struct pci_dirent *dir,
   return err;
 }
 
-static struct pci_dirent *
+static struct pcifs_dirent *
 lookup (struct node *np, char *name)
 {
   int i;
-  struct pci_dirent *ret = 0, *e;
+  struct pcifs_dirent *ret = 0, *e;
 
   for (i = 0; i < np->nn->ln->dir->num_entries; i++)
     {
@@ -230,7 +229,7 @@ netfs_attempt_lookup (struct iouser * user, struct node * dir,
 		      char *name, struct node ** node)
 {
   error_t err = 0;
-  struct pci_dirent *entry;
+  struct pcifs_dirent *entry;
 
   if (*name == '\0' || strcmp (name, ".") == 0)
     /* Current directory -- just add an additional reference to DIR's node
