@@ -58,6 +58,26 @@ parse_hook_add_set (struct parse_hook *h)
   return 0;
 }
 
+static error_t
+check_options_validity (struct parse_hook *h)
+{
+  int i;
+  struct parse_permset *p;
+
+  for (p = h->permsets, i = 0; i < h->num_permsets; i++, p++)
+    {
+      if ((p->func >= 0 && p->dev < 0)
+	  || (p->dev >= 0 && p->bus < 0)
+	  || (p->bus >= 0 && p->domain < 0)
+	  || (p->d_subclass >= 0 && p->d_class < 0)
+	  || ((p->uid || p->gid) && (p->d_class < 0 && p->domain < 0))
+	  || ((p->d_class >= 0 || p->domain >= 0) && !(p->uid || p->gid)))
+	error (1, EINVAL, "Option dependence error");
+    }
+
+  return 0;
+}
+
 /* Option parser */
 static error_t
 parse_opt (int opt, char *arg, struct argp_state *state)
@@ -147,14 +167,7 @@ parse_opt (int opt, char *arg, struct argp_state *state)
 
     case ARGP_KEY_SUCCESS:
       /* Check option dependencies */
-      if (h->curset->func >= 0 && h->curset->dev < 0)
-	FAIL (0, 1, 0, "-f is only valid with -d");
-      if (h->curset->dev >= 0 && h->curset->bus < 0)
-	FAIL (0, 1, 0, "-d is only valid with -b");
-      if (h->curset->bus >= 0 && h->curset->domain < 0)
-	FAIL (0, 1, 0, "-b is only valid with -D");
-      if (h->curset->d_subclass >= 0 && h->curset->d_class < 0)
-	FAIL (0, 1, 0, "-s is only valid with -C");
+      err = check_options_validity (h);
 
       /* Do nothing for now */
       break;
