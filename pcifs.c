@@ -177,6 +177,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
     return err;
 
   c_bus = c_dev = -1;
+  bus_parent = dev_parent = 0;
   domain_parent = e++;
   for (i = 0, device = pci_sys->devices; i <= pci_sys->num_devices;
        i++, device++)
