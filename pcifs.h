@@ -160,11 +160,30 @@ struct pcifs *fs;
 /* Global mapped time */
 volatile struct mapped_time_value *pcifs_maptime;
 
+/* Update entry and node times */
 #define UPDATE_TIMES(e, what) (\
   {\
-    fshelp_touch (&e->stat, what, pcifs_maptime); \
+    fshelp_touch (&e->stat, what, pcifs_maptime);\
     if(e->node)\
       fshelp_touch (&e->node->nn_stat, what, pcifs_maptime);\
+  }\
+)
+
+/* Update entry and node owner */
+#define UPDATE_OWNER(e, uid) (\
+  {\
+    e->stat.st_uid = uid;\
+    if(e->node)\
+      e->node->nn_stat.st_uid = uid;\
+  }\
+)
+
+/* Update entry and node group */
+#define UPDATE_GROUP(e, gid) (\
+  {\
+    e->stat.st_gid = gid;\
+    if(e->node)\
+      e->node->nn_stat.st_gid = gid;\
   }\
 )
 

@@ -249,6 +249,26 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 }
 
 static void
+entry_default_perms (struct pcifs *fs, struct pcifs_dirent *e)
+{
+  int i;
+  struct pcifs_perm *perms = fs->params.perms, *p;
+  size_t num_perms = fs->params.num_perms;
+
+  for (i = 0, p = perms; i < num_perms; i++, p++)
+    {
+      /* Set default owner and group */
+      UPDATE_OWNER (e, fs->root->nn->ln->stat.st_uid);
+      UPDATE_GROUP (e, fs->root->nn->ln->stat.st_gid);
+
+      /* Update ctime */
+      UPDATE_TIMES (e, TOUCH_CTIME);
+    }
+
+  return;
+}
+
+static void
 entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
 {
   int i;
@@ -276,9 +296,9 @@ entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
 
       /* This permission set covers this entry */
       if (p->uid >= 0)
-	e->stat.st_uid = p->uid;
+	UPDATE_OWNER (e, p->uid);
       if (p->gid >= 0)
-	e->stat.st_gid = p->gid;
+	UPDATE_GROUP (e, p->gid);
 
       /* Update ctime */
       UPDATE_TIMES (e, TOUCH_CTIME);
@@ -297,8 +317,13 @@ fs_set_permissions (struct pcifs * fs)
   struct pcifs_dirent *e;
 
   for (i = 0, e = fs->entries; i < fs->num_entries; i++, e++)
-    /* Set new permissions, if any */
-    entry_set_perms (fs, e);
+    {
+      /* Restore default perms, as this may be called from fsysopts */
+      entry_default_perms (fs, e);
+
+      /* Set new permissions, if any */
+      entry_set_perms (fs, e);
+    }
 
   return 0;
 }
