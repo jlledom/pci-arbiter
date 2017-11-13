@@ -79,6 +79,10 @@ main (int argc, char **argv)
   /* Initialize netfs and start the translator. */
   netfs_init ();
 
+  err = maptime_map (0, 0, &pcifs_maptime);
+  if (err)
+    error (1, err, "mapping time");
+
   /* Start the PCI system */
   err = pci_system_init ();
   if (err)

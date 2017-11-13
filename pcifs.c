@@ -113,6 +113,10 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
+  /* Set times to now */
+  fshelp_touch (&np->nn_stat, TOUCH_ATIME | TOUCH_MTIME | TOUCH_CTIME,
+		pcifs_maptime);
+
   fs->entries = calloc (1, sizeof (struct pcifs_dirent));
   if (!fs->entries)
     {
@@ -265,6 +269,9 @@ entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
 	e->stat.st_uid = p->uid;
       if (p->gid >= 0)
 	e->stat.st_gid = p->gid;
+
+      /* Update ctime */
+      fshelp_touch (&e->stat, TOUCH_CTIME, pcifs_maptime);
 
       /* Break, as only one permission set can cover each node */
       break;

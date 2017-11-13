@@ -25,6 +25,7 @@
 
 #include <hurd/netfs.h>
 #include <pthread.h>
+#include <maptime.h>
 
 #include <pci_access.h>
 #include <netfs_impl.h>
@@ -155,6 +156,9 @@ struct pcifs
 
 /* Main FS pointer */
 struct pcifs *fs;
+
+/* Global mapped time */
+volatile struct mapped_time_value *pcifs_maptime;
 
 /* FS manipulation functions */
 error_t alloc_file_system (struct pcifs **fs);
