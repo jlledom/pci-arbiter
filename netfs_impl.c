@@ -413,7 +413,10 @@ error_t
 netfs_attempt_statfs (struct iouser * cred, struct node * node,
 		      struct statfs * st)
 {
-  return EOPNOTSUPP;
+  memset (st, 0, sizeof *st);
+  st->f_type = FSTYPE_PCI;
+  st->f_fsid = getpid ();
+  return 0;
 }
 
 /* This should sync the entire remote filesystem.  If WAIT is set, return
