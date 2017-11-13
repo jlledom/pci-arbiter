@@ -154,17 +154,19 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 
   nentries = 2;			/* Skip root and domain entries */
   c_bus = c_dev = -1;
-  for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices; i++)
+  for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
+       i++, device++)
     {
       if (device->bus != c_bus)
 	{
 	  c_bus = device->bus;
+	  c_dev = -1;
 	  nentries++;
 	}
 
       if (device->dev != c_dev)
 	{
-	  c_bus = device->bus;
+	  c_dev = device->dev;
 	  nentries++;
 	}
 
@@ -188,12 +190,12 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   c_bus = c_dev = -1;
   bus_parent = dev_parent = 0;
   domain_parent = e++;
-  for (i = 0, device = pci_sys->devices; i <= pci_sys->num_devices;
+  for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
        i++, device++)
     {
       if (device->bus != c_bus)
 	{
-	  /* We've found a new bus. Add entry for it */
+	  /* We've found a new bus. Add an entry for it */
 	  memset (entry_name, 0, NAME_SIZE);
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->bus);
 	  err =
@@ -210,7 +212,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 
       if (device->dev != c_dev)
 	{
-	  /* We've found a new dev. Add entry for it */
+	  /* We've found a new dev. Add an entry for it */
 	  memset (entry_name, 0, NAME_SIZE);
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->dev);
 	  err =
