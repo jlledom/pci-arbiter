@@ -113,6 +113,9 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
+  /* Remove all permissions to others */
+  np->nn_stat.st_mode &= ~(S_IROTH | S_IWOTH | S_IXOTH);
+
   /* Set times to now */
   fshelp_touch (&np->nn_stat, TOUCH_ATIME | TOUCH_MTIME | TOUCH_CTIME,
 		pcifs_maptime);
@@ -145,6 +148,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   size_t nentries;
   struct pci_device *device;
   struct pcifs_dirent *e, *domain_parent, *bus_parent, *dev_parent, *list;
+  struct stat e_stat;
   char entry_name[NAME_SIZE];
 
   nentries = 2;			/* Skip root and domain entries */
@@ -222,10 +226,13 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       /* Add func entry */
       memset (entry_name, 0, NAME_SIZE);
       snprintf (entry_name, NAME_SIZE, "%01u", device->func);
+      /* Remove directory mode as this is the lowest level */
+      e_stat = dev_parent->stat;
+      e_stat.st_mode &= ~S_IFDIR;
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, dev_parent,
-			  dev_parent->stat, 0, e++);
+			  e_stat, 0, e++);
       if (err)
 	return err;
     }
