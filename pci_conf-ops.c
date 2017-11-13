@@ -69,7 +69,7 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
 {
   error_t err;
   pthread_mutex_t *lock;
-  struct stat *e_stat;
+  struct pcifs_dirent *e;
 
   if (!master)
     return EOPNOTSUPP;
@@ -99,9 +99,9 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
     {
       *datalen = amount;
       /* Update atime, only if this is not a directory */
-      e_stat = &master->po->np->nn->ln->stat;
-      if (!S_ISDIR (e_stat->st_mode))
-	fshelp_touch (e_stat, TOUCH_ATIME, pcifs_maptime);
+      e = master->po->np->nn->ln;
+      if (!S_ISDIR (e->stat.st_mode))
+	UPDATE_TIMES (e, TOUCH_ATIME);
     }
 
   return err;
@@ -115,7 +115,7 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
 {
   error_t err;
   pthread_mutex_t *lock;
-  struct stat *e_stat;
+  struct pcifs_dirent *e;
 
   if (!master)
     return EOPNOTSUPP;
@@ -134,9 +134,9 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     {
       *amount = datalen;
       /* Update mtime and ctime, only if this is not a directory */
-      e_stat = &master->po->np->nn->ln->stat;
-      if (!S_ISDIR (e_stat->st_mode))
-	fshelp_touch (e_stat, TOUCH_MTIME | TOUCH_CTIME, pcifs_maptime);
+      e = master->po->np->nn->ln;
+      if (!S_ISDIR (e->stat.st_mode))
+	UPDATE_TIMES (e, TOUCH_MTIME | TOUCH_CTIME);
     }
 
   return err;

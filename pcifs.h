@@ -160,6 +160,14 @@ struct pcifs *fs;
 /* Global mapped time */
 volatile struct mapped_time_value *pcifs_maptime;
 
+#define UPDATE_TIMES(e, what) (\
+  {\
+    fshelp_touch (&e->stat, what, pcifs_maptime); \
+    if(e->node)\
+      fshelp_touch (&e->node->nn_stat, what, pcifs_maptime);\
+  }\
+)
+
 /* FS manipulation functions */
 error_t alloc_file_system (struct pcifs **fs);
 error_t init_file_system (file_t underlying_node, struct pcifs *fs);

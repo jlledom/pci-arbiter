@@ -219,7 +219,7 @@ netfs_get_dirents (struct iouser * cred, struct node * dir,
 
   if (!err)
     /* Update atime */
-    fshelp_touch (&dir->nn->ln->stat, TOUCH_ATIME, pcifs_maptime);
+    UPDATE_TIMES (dir->nn->ln, TOUCH_ATIME);
 
   return err;
 }

@@ -278,7 +278,7 @@ entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
 	e->stat.st_gid = p->gid;
 
       /* Update ctime */
-      fshelp_touch (&e->stat, TOUCH_CTIME, pcifs_maptime);
+      UPDATE_TIMES (e, TOUCH_CTIME);
 
       /* Break, as only one permission set can cover each node */
       break;
