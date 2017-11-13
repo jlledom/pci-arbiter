@@ -45,6 +45,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
   strncpy (entry->name, name, NAME_SIZE);
   entry->parent = parent;
   entry->stat = stat;
+  entry->dir = 0;
   entry->node = node;
 
   /* Update parent's child list */
