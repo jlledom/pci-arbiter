@@ -190,6 +190,7 @@ netfs_report_access (struct iouser * cred, struct node * node, int *types)
 error_t
 netfs_validate_stat (struct node * node, struct iouser * cred)
 {
+  /* Nothing to do here */
   return 0;
 }
 
@@ -408,7 +409,8 @@ netfs_attempt_chflags (struct iouser * cred, struct node * node, int flags)
 error_t
 netfs_attempt_set_size (struct iouser * cred, struct node * node, off_t size)
 {
-  return EOPNOTSUPP;
+  /* Do nothing */
+  return 0;
 }
 
 /* This should attempt to fetch filesystem status information for the remote
