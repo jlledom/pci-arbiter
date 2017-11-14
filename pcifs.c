@@ -148,7 +148,8 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   int c_domain, c_bus, c_dev, i;
   size_t nentries;
   struct pci_device *device;
-  struct pcifs_dirent *e, *domain_parent, *bus_parent, *dev_parent, *list;
+  struct pcifs_dirent *e, *domain_parent, *bus_parent, *dev_parent,
+    *func_parent, *list;
   struct stat e_stat;
   char entry_name[NAME_SIZE];
 
@@ -170,7 +171,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  nentries++;
 	}
 
-      nentries++;
+      nentries += 3;		/* func dir + config + rom */
     }
 
   list = realloc (fs->entries, nentries * sizeof (struct pcifs_dirent));
@@ -188,7 +189,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
     return err;
 
   c_bus = c_dev = -1;
-  bus_parent = dev_parent = 0;
+  bus_parent = dev_parent = func_parent = 0;
   domain_parent = e++;
   for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
        i++, device++)
@@ -229,12 +230,35 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       /* Add func entry */
       memset (entry_name, 0, NAME_SIZE);
       snprintf (entry_name, NAME_SIZE, "%01u", device->func);
-      /* Remove directory mode as this is the lowest level */
-      e_stat = dev_parent->stat;
-      e_stat.st_mode &= ~S_IFDIR;
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, dev_parent,
+			  dev_parent->stat, 0, e);
+      if (err)
+	return err;
+
+      /* Switch to the lowest level */
+      func_parent = e++;
+
+      /* Change mode to a regular file */
+      e_stat = func_parent->stat;
+      e_stat.st_mode &= ~(S_IFDIR | S_IXUSR | S_IXGRP);
+
+      /* Create config and rom entries */
+      strncpy (entry_name, ENTRY_NAME_CONFIG, NAME_SIZE);
+      err =
+	create_dir_entry (c_domain, device->bus, device->dev, device->func,
+			  device->device_class, entry_name, func_parent,
+			  e_stat, 0, e++);
+      if (err)
+	return err;
+
+      /* Make rom is read only */
+      e_stat.st_mode &= ~(S_IWUSR | S_IWGRP);
+      strncpy (entry_name, ENTRY_NAME_ROM, NAME_SIZE);
+      err =
+	create_dir_entry (c_domain, device->bus, device->dev, device->func,
+			  device->device_class, entry_name, func_parent,
 			  e_stat, 0, e++);
       if (err)
 	return err;

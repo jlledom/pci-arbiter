@@ -38,6 +38,10 @@
 /* Node cache defaults size */
 #define NODE_CACHE_MAX 16
 
+/* Config and rom entry names */
+#define ENTRY_NAME_CONFIG   "config"
+#define ENTRY_NAME_ROM "rom"
+
 /*
  * Directory entry. Contains all per-node data our problem requires.
  *
