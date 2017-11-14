@@ -38,12 +38,12 @@
 /* Node cache defaults size */
 #define NODE_CACHE_MAX 16
 
-/* 
- * Directory entriy. Contains all per-node data our problem requires.
- * 
+/*
+ * Directory entry. Contains all per-node data our problem requires.
+ *
  * All directory entries are created on startup and used to generate the
  * fs tree and create or retrieve libnetfs node objects.
- * 
+ *
  * From libnetfs' point of view, these are the light nodes.
  */
 struct pcifs_dirent
@@ -52,7 +52,7 @@ struct pcifs_dirent
    * Complete bus identification, including domain, of the device.  On
    * platforms that do not support PCI domains (e.g., 32-bit x86 hardware),
    * the domain will always be zero.
-   * 
+   *
    * Negative value means no value.
    */
   int32_t domain;
@@ -64,7 +64,7 @@ struct pcifs_dirent
    * Device's class, subclass, and programming interface packed into a
    * single 32-bit value.  The class is at bits [23:16], subclass is at
    * bits [15:8], and programming interface is at [7:0].
-   * 
+   *
    * Negative value means no value.
    */
   int32_t device_class;
@@ -104,7 +104,7 @@ struct pcifs_perm
 {
   /*
    * D/b/d/f scope of permissions.
-   * 
+   *
    * Negative value means no value.
    */
   int32_t domain;
@@ -114,7 +114,7 @@ struct pcifs_perm
 
   /*
    * Class and subclass scope of permissions
-   * 
+   *
    * Negative value means no value.
    */
   int16_t d_class;
