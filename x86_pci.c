@@ -117,7 +117,7 @@ pci_system_x86_conf1_read (unsigned bus, unsigned dev, unsigned func,
 
 static int
 pci_system_x86_conf1_write (unsigned bus, unsigned dev, unsigned func,
-			    pciaddr_t reg, const void *data, unsigned size)
+			    pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xCFC + (reg & 3);
   unsigned long sav;
@@ -213,7 +213,7 @@ pci_system_x86_conf2_read (unsigned bus, unsigned dev, unsigned func,
 
 static int
 pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
-			    pciaddr_t reg, const void *data, unsigned size)
+			    pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xC000 | dev << 8 | reg;
   int ret = 0;
