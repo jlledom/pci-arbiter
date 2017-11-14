@@ -32,6 +32,8 @@
 
 #include <pcifs.h>
 #include <ncache.h>
+#include <pci_access.h>
+#include <func_files.h>
 
 #define DIRENTS_CHUNK_SIZE      (8*1024)
 /* Returned directory entries are aligned to blocks this many bytes long.
@@ -466,7 +468,21 @@ error_t
 netfs_attempt_read (struct iouser * cred, struct node * node,
 		    off_t offset, size_t * len, void *data)
 {
-  return EOPNOTSUPP;
+  error_t err;
+
+  if (!strncmp (node->nn->ln->name, FILE_CONFIG_NAME, NAME_SIZE))
+    {
+      err = io_config_file (node->nn->ln, offset, len, data, pci_sys->read);
+      if (!err)
+	/* Update atime */
+	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
+    }
+  else if (!strncmp (node->nn->ln->name, FILE_ROM_NAME, NAME_SIZE))
+    return EOPNOTSUPP;
+  else
+    return EOPNOTSUPP;
+
+  return err;
 }
 
 /* Write to the file NODE for user CRED starting at OFSET and continuing for up
@@ -476,7 +492,21 @@ error_t
 netfs_attempt_write (struct iouser * cred, struct node * node,
 		     off_t offset, size_t * len, void *data)
 {
-  return EOPNOTSUPP;
+  error_t err;
+
+  if (!strncmp (node->nn->ln->name, FILE_CONFIG_NAME, NAME_SIZE))
+    {
+      err = io_config_file (node->nn->ln, offset, len, data, pci_sys->write);
+      if (!err)
+	/* Update mtime and ctime */
+	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
+    }
+  else if (!strncmp (node->nn->ln->name, FILE_ROM_NAME, NAME_SIZE))
+    return EOPNOTSUPP;
+  else
+    return EOPNOTSUPP;
+
+  return err;
 }
 
 /* Node NP is all done; free all its associated storage. */

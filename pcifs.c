@@ -28,6 +28,7 @@
 #include <pthread.h>
 
 #include <ncache.h>
+#include <func_files.h>
 
 static error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
@@ -245,7 +246,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       e_stat.st_mode &= ~(S_IFDIR | S_IXUSR | S_IXGRP);
 
       /* Create config and rom entries */
-      strncpy (entry_name, ENTRY_NAME_CONFIG, NAME_SIZE);
+      strncpy (entry_name, FILE_CONFIG_NAME, NAME_SIZE);
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, func_parent,
@@ -255,7 +256,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 
       /* Make rom is read only */
       e_stat.st_mode &= ~(S_IWUSR | S_IWGRP);
-      strncpy (entry_name, ENTRY_NAME_ROM, NAME_SIZE);
+      strncpy (entry_name, FILE_ROM_NAME, NAME_SIZE);
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, func_parent,
