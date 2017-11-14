@@ -210,6 +210,46 @@ parse_opt (int opt, char *arg, struct argp_state *state)
   return err;
 }
 
+error_t
+netfs_append_args (char **argz, size_t * argz_len)
+{
+  error_t err = 0;
+  struct pcifs_perm *p;
+  int i;
+
+#define ADD_OPT(fmt, args...)           \
+  do { char buf[100];                   \
+       if (! err) {                     \
+         snprintf (buf, sizeof buf, fmt , ##args);      \
+         err = argz_add (argz, argz_len, buf); } } while (0)
+
+  for (i = 0, p = fs->params.perms; i < fs->params.num_perms; i++, p++)
+    {
+      if (p->d_class >= 0)
+	ADD_OPT ("--class=0x%02x", p->d_class);
+      if (p->d_subclass >= 0)
+	ADD_OPT ("--subclass=0x%02x", p->d_subclass);
+      if (p->domain >= 0)
+	ADD_OPT ("--domain=0x%04x", p->domain);
+      if (p->bus >= 0)
+	ADD_OPT ("--bus=0x%02x", p->bus);
+      if (p->dev >= 0)
+	ADD_OPT ("--dev=0x%02x", p->dev);
+      if (p->func >= 0)
+	ADD_OPT ("--func=%01u", p->func);
+      if (p->uid >= 0)
+	ADD_OPT ("--uid=%u", p->uid);
+      if (p->gid >= 0)
+	ADD_OPT ("--gid=%u", p->gid);
+    }
+
+  if (fs->params.node_cache_max != NODE_CACHE_MAX)
+    ADD_OPT ("--ncache=%u", fs->params.node_cache_max);
+
+#undef ADD_OPT
+  return err;
+}
+
 struct argp pci_argp = { options, parse_opt, 0, doc };
 
 struct argp *netfs_runtime_argp = &pci_argp;
