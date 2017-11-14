@@ -150,8 +150,8 @@ struct pcifs
   size_t node_cache_len;	/* Number of entries in it.  */
   pthread_mutex_t node_cache_lock;
 
-  /* Lock for pci_conf operations */
-  pthread_mutex_t pci_conf_lock;
+  /* Read-write lock for pci_conf operations */
+  pthread_rwlock_t pci_conf_lock;
 
   struct pcifs_dirent *entries;
   size_t num_entries;

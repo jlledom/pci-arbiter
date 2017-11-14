@@ -103,9 +103,6 @@ main (int argc, char **argv)
   if (err)
     error (1, err, "Setting permissions");
 
-  /* Initialize the lock for incoming pci_conf rpcs */
-  pthread_mutex_init (&fs->pci_conf_lock, 0);
-
   netfs_server_loop ();		/* Never returns.  */
 
   return 0;
