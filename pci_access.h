@@ -63,7 +63,8 @@
 
 typedef uint64_t pciaddr_t;
 
-typedef int (*pciop_t) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg, const void *data, unsigned size);
+typedef int (*pciop_t) (unsigned bus, unsigned dev, unsigned func,
+			pciaddr_t reg, void *data, unsigned size);
 
 /*
  * PCI device.
