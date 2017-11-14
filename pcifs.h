@@ -35,6 +35,9 @@
 #define NAME_SIZE 16
 #endif
 
+/* Node cache defaults size */
+#define NODE_CACHE_MAX 16
+
 /* 
  * Directory entriy. Contains all per-node data our problem requires.
  * 

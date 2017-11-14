@@ -30,8 +30,6 @@
 
 #include <pcifs.h>
 
-#define NCACHE_DEFAULT_LEN  16
-
 /* Fsysopts and command line option parsing */
 
 /* Adds an empty interface slot to H, and sets H's current interface to it, or
@@ -171,7 +169,7 @@ parse_opt (int opt, char *arg, struct argp_state *state)
 
       h->permsets = 0;
       h->num_permsets = 0;
-      h->ncache_len = NCACHE_DEFAULT_LEN;
+      h->ncache_len = NODE_CACHE_MAX;
       err = parse_hook_add_set (h);
       if (err)
 	FAIL (err, 1, err, "option parsing");

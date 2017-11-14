@@ -30,6 +30,9 @@
 
 #include <pcifs.h>
 
+#define STR2(x)  #x
+#define STR(x)  STR2(x)
+
 /* Used to hold data during argument parsing.  */
 struct parse_hook
 {
@@ -58,7 +61,8 @@ static const struct argp_option options[] = {
   {"uid", 'U', "UID", 0, "User ID to give permissions to"},
   {"gid", 'G', "GID", 0, "Group ID to give permissions to"},
   {0, 0, 0, 0, "Global configuration options:", 3},
-  {"ncache", 'n', "LENGTH", 0, "Node cache length. 16 by default"},
+  {"ncache", 'n', "LENGTH", 0,
+   "Node cache length. " STR (NODE_CACHE_MAX) " by default"},
   {0}
 };
 
