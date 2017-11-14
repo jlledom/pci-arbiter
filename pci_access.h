@@ -63,6 +63,8 @@
 
 typedef uint64_t pciaddr_t;
 
+typedef int (*pciop_t) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg, const void *data, unsigned size);
+
 /*
  * PCI device.
  *
@@ -95,10 +97,8 @@ struct pci_system
   struct pci_device *devices;
 
   /* Callbacks */
-  int (*read) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg,
-	       void *data, unsigned size);
-  int (*write) (unsigned bus, unsigned dev, unsigned func, pciaddr_t reg,
-		const void *data, unsigned size);
+  pciop_t read;
+  pciop_t write;
 };
 
 struct pci_system *pci_sys;
