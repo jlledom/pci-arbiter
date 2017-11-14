@@ -164,7 +164,7 @@ parse_opt (int opt, char *arg, struct argp_state *state)
 	FAIL (ENOMEM, 1, ENOMEM, "option parsing");
 
       if (fs->root)
-	/* Free previous permissions if we-ve been called from fsysopts */
+	/* Free previous permissions if we've been called from fsysopts */
 	free (fs->params.perms);
 
       h->permsets = 0;
