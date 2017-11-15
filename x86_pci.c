@@ -290,7 +290,7 @@ pci_device_x86_rom_probe (struct pci_device *dev)
     return -1;
 
   reg_back = reg;
-  reg = 0xffffffff;
+  reg = 0xFFFFF800; /* Base address: first 21 bytes */
   if (pci_sys->
       write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
 	     sizeof (reg)) != 0)
@@ -315,7 +315,7 @@ pci_device_x86_rom_probe (struct pci_device *dev)
 
   /* Enable the Memory Space bit */
   if (pci_sys->
-      write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+      read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
 	     sizeof (reg)) != 0)
     return -1;
 
@@ -339,6 +339,9 @@ pci_device_x86_rom_probe (struct pci_device *dev)
     }
 
   close (memfd);
+
+  dev->rom_size = rom_size;
+  dev->rom_addr = rom_mapped;
 
   return 0;
 }
