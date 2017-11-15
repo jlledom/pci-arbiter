@@ -89,6 +89,16 @@ struct pci_device
    * bits [15:8], and programming interface is at [7:0].
    */
   uint32_t device_class;
+
+  /*
+   * Size, in bytes, of the device's expansion ROM.
+   */
+  pciaddr_t rom_size;
+
+  /*
+   * Mapped ROM
+   */
+  void *rom_addr;
 };
 
 /* Global PCI data */

@@ -41,7 +41,14 @@
 #define PCI_CLASS_DISPLAY_VGA		0x0300
 #define PCI_CLASS_BRIDGE_HOST		0x0600
 
+#define PCI_XROMBAR_ADDR_00   0x30
+#define PCI_XROMBAR_ADDR_01   0x38
+
 #define PCI_HDRTYPE	0x0E
+#define PCI_HDRTYPE_DEVICE	0x00
+#define PCI_HDRTYPE_BRIDGE	0x01
+
+#define PCI_COMMAND   0x04
 
 int pci_system_x86_create (void);
 

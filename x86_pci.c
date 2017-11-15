@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2017 Joan Lledó
  * Copyright (c) 2009, 2012 Samuel Thibault
  * Heavily inspired from the freebsd, netbsd, and openbsd backends
  * (C) Copyright Eric Anholt 2006
@@ -253,6 +254,95 @@ pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
   return ret;
 }
 
+static int
+pci_device_x86_rom_probe (struct pci_device *dev)
+{
+  uint8_t reg_8, xrombar_addr;
+  uint32_t reg, reg_back;
+  pciaddr_t rom_size;
+  pciaddr_t rom_addr;
+  void *rom_mapped;
+  int memfd;
+
+  /* First we need to know which type of header is this */
+  if (pci_sys->
+      read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &reg_8,
+	    sizeof (reg_8)) != 0)
+    return -1;
+
+  /* Get the XROMBAR register address */
+  switch (reg_8 & 0x3)
+    {
+    case PCI_HDRTYPE_DEVICE:
+      xrombar_addr = PCI_XROMBAR_ADDR_00;
+      break;
+    case PCI_HDRTYPE_BRIDGE:
+      xrombar_addr = PCI_XROMBAR_ADDR_01;
+      break;
+    default:
+      return -1;
+    }
+
+  /* Get size and physical address */
+  if (pci_sys->
+      read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+	    sizeof (reg)) != 0)
+    return -1;
+
+  reg_back = reg;
+  reg = 0xffffffff;
+  if (pci_sys->
+      write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+	     sizeof (reg)) != 0)
+    return -1;
+  if (pci_sys->
+      read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+	    sizeof (reg)) != 0)
+    return -1;
+
+  rom_size = (~reg + 1);
+  rom_addr = reg_back & reg;
+
+  if (rom_size == 0)
+    return -1;
+
+  /* Enable the address decoder and write the physical address back */
+  reg_back |= 0x1;
+  if (pci_sys->
+      write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg_back,
+	     sizeof (reg_back)) != 0)
+    return -1;
+
+  /* Enable the Memory Space bit */
+  if (pci_sys->
+      write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+	     sizeof (reg)) != 0)
+    return -1;
+
+  reg |= 0x2;
+
+  if (pci_sys->
+      write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+	     sizeof (reg)) != 0)
+    return -1;
+
+  /* Map the ROM in our space */
+  memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
+  if (memfd == -1)
+    return errno;
+
+  rom_mapped = mmap (NULL, rom_size, PROT_READ, 0, memfd, rom_addr);
+  if (rom_mapped == MAP_FAILED)
+    {
+      close (memfd);
+      return errno;
+    }
+
+  close (memfd);
+
+  return 0;
+}
+
 /* Check that this really looks like a PCI configuration. */
 static int
 pci_system_x86_check (struct pci_system *pci_sys)
@@ -348,9 +438,8 @@ pci_system_x86_create (void)
 	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
 	  for (func = 0; func < nfuncs; func++)
 	    {
-	      if (pci_sys->
-		  read (bus, dev, func, PCI_VENDOR_ID, &reg,
-			sizeof (reg)) != 0)
+	      if (pci_sys->read (bus, dev, func, PCI_VENDOR_ID, &reg,
+				 sizeof (reg)) != 0)
 		continue;
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
@@ -378,9 +467,8 @@ pci_system_x86_create (void)
 	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
 	  for (func = 0; func < nfuncs; func++)
 	    {
-	      if (pci_sys->
-		  read (bus, dev, func, PCI_VENDOR_ID, &reg,
-			sizeof (reg)) != 0)
+	      if (pci_sys->read (bus, dev, func, PCI_VENDOR_ID, &reg,
+				 sizeof (reg)) != 0)
 		continue;
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
@@ -390,10 +478,12 @@ pci_system_x86_create (void)
 	      device->dev = dev;
 	      device->func = func;
 
-	      if (pci_sys->
-		  read (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
+	      if (pci_sys->read
+		  (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
 		continue;
 	      device->device_class = reg >> 8;
+
+	      pci_device_x86_rom_probe (device);
 
 	      device++;
 	    }
