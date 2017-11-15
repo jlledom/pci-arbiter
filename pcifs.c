@@ -35,7 +35,8 @@ static error_t
 create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
 		  int16_t func, int32_t device_class, char *name,
 		  struct pcifs_dirent *parent, io_statbuf_t stat,
-		  struct node *node, struct pcifs_dirent *entry)
+		  struct node *node, struct pci_device *device,
+		  struct pcifs_dirent *entry)
 {
   uint16_t parent_num_entries;
 
@@ -49,6 +50,7 @@ create_dir_entry (int32_t domain, int16_t bus, int16_t dev,
   entry->stat = stat;
   entry->dir = 0;
   entry->node = node;
+  entry->device = device;
 
   /* Update parent's child list */
   if (entry->parent)
@@ -131,7 +133,7 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
     }
 
   err =
-    create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np,
+    create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np, 0,
 		      fs->entries);
 
   fs->num_entries = 1;
@@ -189,7 +191,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   memset (entry_name, 0, NAME_SIZE);
   snprintf (entry_name, NAME_SIZE, "%04x", c_domain);
   err = create_dir_entry (c_domain, -1, -1, -1, -1, entry_name, list,
-			  list->stat, 0, e);
+			  list->stat, 0, 0, e);
   if (err)
     return err;
 
@@ -206,7 +208,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->bus);
 	  err =
 	    create_dir_entry (c_domain, device->bus, -1, -1, -1, entry_name,
-			      domain_parent, domain_parent->stat, 0, e);
+			      domain_parent, domain_parent->stat, 0, 0, e);
 	  if (err)
 	    return err;
 
@@ -223,7 +225,8 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->dev);
 	  err =
 	    create_dir_entry (c_domain, device->bus, device->dev, -1, -1,
-			      entry_name, bus_parent, bus_parent->stat, 0, e);
+			      entry_name, bus_parent, bus_parent->stat, 0, 0,
+			      e);
 	  if (err)
 	    return err;
 
@@ -238,7 +241,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, dev_parent,
-			  dev_parent->stat, 0, e);
+			  dev_parent->stat, 0, device, e);
       if (err)
 	return err;
 
@@ -255,7 +258,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, func_parent,
-			  e_stat, 0, e++);
+			  e_stat, 0, device, e++);
       if (err)
 	return err;
 
@@ -269,7 +272,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  err =
 	    create_dir_entry (c_domain, device->bus, device->dev,
 			      device->func, device->device_class, entry_name,
-			      func_parent, e_stat, 0, e++);
+			      func_parent, e_stat, 0, device, e++);
 	  if (err)
 	    return err;
 	}

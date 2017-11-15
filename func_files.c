@@ -21,6 +21,8 @@
 
 #include <func_files.h>
 
+#include <assert.h>
+
 static error_t
 config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
 		 void *data, pciop_t op)
@@ -87,4 +89,20 @@ io_config_file (struct pcifs_dirent * e, off_t offset, size_t * len,
   pthread_rwlock_unlock (&fs->pci_conf_lock);
 
   return err;
+}
+
+error_t
+read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
+	       void *data)
+{
+  /* This should never happen */
+  assert_backtrace (dev != 0);
+
+  /* Don't exceed the ROM size */
+  if ((offset + *len) > dev->rom_size)
+    *len = dev->rom_size - offset;
+
+  memcpy (data, dev->rom_addr + offset, *len);
+
+  return 0;
 }

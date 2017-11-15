@@ -81,6 +81,13 @@ struct pcifs_dirent
 
   /* Active node on this entry */
   struct node *node;
+
+  /*
+   * Underlying virtual device if any.
+   *
+   * Only for entries having a full B/D/F address.
+   */
+  struct pci_device *device;
 };
 
 /*

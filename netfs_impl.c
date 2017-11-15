@@ -475,7 +475,12 @@ netfs_attempt_read (struct iouser * cred, struct node * node,
 	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
     }
   else if (!strncmp (node->nn->ln->name, FILE_ROM_NAME, NAME_SIZE))
-    return EOPNOTSUPP;
+    {
+      err = read_rom_file (node->nn->ln->device, offset, len, data);
+      if (!err)
+	/* Update atime */
+	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
+    }
   else
     return EOPNOTSUPP;
 
@@ -498,8 +503,6 @@ netfs_attempt_write (struct iouser * cred, struct node * node,
 	/* Update mtime and ctime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
     }
-  else if (!strncmp (node->nn->ln->name, FILE_ROM_NAME, NAME_SIZE))
-    return EOPNOTSUPP;
   else
     return EOPNOTSUPP;
 

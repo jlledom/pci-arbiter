@@ -34,4 +34,7 @@
 error_t io_config_file (struct pcifs_dirent * e, off_t offset, size_t * len,
 			void *data, pciop_t op);
 
+error_t read_rom_file (struct pci_device *dev, off_t offset, size_t * len,
+		       void *data);
+
 #endif /* FUNC_FILES_H */
