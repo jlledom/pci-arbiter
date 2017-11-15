@@ -174,7 +174,10 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  nentries++;
 	}
 
-      nentries += 3;		/* func dir + config + rom */
+      nentries += 2;		/* func dir + config */
+
+      if (device->rom_addr)
+	nentries++;		/* + rom */
     }
 
   list = realloc (fs->entries, nentries * sizeof (struct pcifs_dirent));
@@ -248,7 +251,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       e_stat.st_mode &= ~(S_IFDIR | S_IXUSR | S_IXGRP);
       e_stat.st_size = FILE_CONFIG_SIZE;
 
-      /* Create config and rom entries */
+      /* Create config entry */
       strncpy (entry_name, FILE_CONFIG_NAME, NAME_SIZE);
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
@@ -257,15 +260,20 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       if (err)
 	return err;
 
-      /* Make rom is read only */
-      e_stat.st_mode &= ~(S_IWUSR | S_IWGRP);
-      strncpy (entry_name, FILE_ROM_NAME, NAME_SIZE);
-      err =
-	create_dir_entry (c_domain, device->bus, device->dev, device->func,
-			  device->device_class, entry_name, func_parent,
-			  e_stat, 0, e++);
-      if (err)
-	return err;
+      /* Create rom entry */
+      if (device->rom_addr)
+	{
+	  /* Make rom is read only */
+	  e_stat.st_mode &= ~(S_IWUSR | S_IWGRP);
+	  e_stat.st_size = device->rom_size;
+	  strncpy (entry_name, FILE_ROM_NAME, NAME_SIZE);
+	  err =
+	    create_dir_entry (c_domain, device->bus, device->dev,
+			      device->func, device->device_class, entry_name,
+			      func_parent, e_stat, 0, e++);
+	  if (err)
+	    return err;
+	}
     }
 
   /* The root node points to the first element of the entry list */
