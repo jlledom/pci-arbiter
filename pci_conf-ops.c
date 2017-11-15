@@ -26,7 +26,6 @@
 
 #include <pcifs.h>
 #include <pci_access.h>
-#include <netfs_impl.h>
 
 static error_t
 check_permissions (struct protid *master, int bus, int dev, int func,
@@ -40,7 +39,7 @@ check_permissions (struct protid *master, int bus, int dev, int func,
   e = node->nn->ln;
 
   /* Check wheter the user has permissions to access this node */
-  err = netfs_check_open_permissions (master->user, node, flags, 0);
+  err = entry_check_perms (master->user, e, flags);
   if (err)
     return err;
 

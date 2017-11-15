@@ -156,16 +156,7 @@ error_t
 netfs_check_open_permissions (struct iouser * user, struct node * node,
 			      int flags, int newnode)
 {
-  error_t err = 0;
-
-  if (!err && (flags & O_READ))
-    err = fshelp_access (&node->nn_stat, S_IREAD, user);
-  if (!err && (flags & O_WRITE))
-    err = fshelp_access (&node->nn_stat, S_IWRITE, user);
-  if (!err && (flags & O_EXEC))
-    err = fshelp_access (&node->nn_stat, S_IEXEC, user);
-
-  return err;
+  return entry_check_perms (user, node->nn->ln, flags);
 }
 
 /* This should attempt a utimes call for the user specified by CRED on node

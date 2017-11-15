@@ -195,6 +195,8 @@ error_t alloc_file_system (struct pcifs **fs);
 error_t init_file_system (file_t underlying_node, struct pcifs *fs);
 error_t create_fs_tree (struct pcifs *fs, struct pci_system *pci_sys);
 error_t fs_set_permissions (struct pcifs *fs);
+error_t entry_check_perms (struct iouser *user, struct pcifs_dirent *e,
+			   int flags);
 error_t create_node (struct pcifs_dirent *e, struct node **node);
 void destroy_node (struct node *node);
 

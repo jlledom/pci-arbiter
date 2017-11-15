@@ -22,10 +22,11 @@
 #include <pcifs.h>
 
 #include <stdio.h>
-#include <hurd/netfs.h>
 #include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <hurd/netfs.h>
 
 #include <ncache.h>
 #include <func_files.h>
@@ -271,6 +272,21 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   fs->entries = list;
   fs->num_entries = nentries;
   fs->root->nn->ln = fs->entries;
+
+  return err;
+}
+
+error_t
+entry_check_perms (struct iouser * user, struct pcifs_dirent * e, int flags)
+{
+  error_t err = 0;
+
+  if (!err && (flags & O_READ))
+    err = fshelp_access (&e->stat, S_IREAD, user);
+  if (!err && (flags & O_WRITE))
+    err = fshelp_access (&e->stat, S_IWRITE, user);
+  if (!err && (flags & O_EXEC))
+    err = fshelp_access (&e->stat, S_IEXEC, user);
 
   return err;
 }
