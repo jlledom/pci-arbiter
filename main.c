@@ -84,6 +84,7 @@ main (int argc, char **argv)
     error (1, err, "mapping time");
 
   /* Start the PCI system */
+  pthread_rwlock_init (&fs->pci_conf_lock, 0);
   err = pci_system_init ();
   if (err)
     error (1, err, "Starting the PCI system");

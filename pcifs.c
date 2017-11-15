@@ -139,7 +139,6 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
   fs->root->nn->ln = fs->entries;
   fs->params.node_cache_max = NODE_CACHE_MAX;
   pthread_mutex_init (&fs->node_cache_lock, 0);
-  pthread_rwlock_init (&fs->pci_conf_lock, 0);
 
   return 0;
 }
