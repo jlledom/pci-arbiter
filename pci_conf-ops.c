@@ -57,6 +57,27 @@ check_permissions (struct protid *master, int bus, int dev, int func,
   return err;
 }
 
+static size_t
+calculate_ndevs (struct iouser *user)
+{
+  size_t ndevs = 0;
+  int i;
+  struct pcifs_dirent *e;
+
+  for (i = 0, e = fs->entries; i < fs->num_entries; i++, e++)
+    {
+      if (e->func < 0		/* Skip entries without a full address  */
+	  || !S_ISDIR (e->stat.st_mode))	/* and entries that are not folders     */
+	continue;
+
+      if (!entry_check_perms (user, e, O_READ))
+	/* If no error, user may access this device */
+	ndevs++;
+    }
+
+  return ndevs;
+}
+
 /*
  * Read min(amount,*datalen) bytes and store them on `*data'.
  *
@@ -140,4 +161,17 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     }
 
   return err;
+}
+
+/* Write in `amount' the number of devices allowed for the 'user'. */
+error_t
+S_pci_conf_get_ndevs (struct protid * master, mach_msg_type_number_t * amount)
+{
+  /* This RPC may only be addressed to the root node */
+  if (master->po->np != fs->root)
+    return EINVAL;
+
+  *amount = calculate_ndevs (master->user);
+
+  return 0;
 }
