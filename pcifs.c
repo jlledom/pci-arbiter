@@ -118,8 +118,8 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
 	np->nn_stat.st_mode |= S_IXOTH;
     }
 
-  /* Remove all permissions to others */
-  np->nn_stat.st_mode &= ~(S_IROTH | S_IWOTH | S_IXOTH);
+  /* Remove write permissions to others */
+  np->nn_stat.st_mode &= ~S_IWOTH;
 
   /* Set times to now */
   fshelp_touch (&np->nn_stat, TOUCH_ATIME | TOUCH_MTIME | TOUCH_CTIME,
@@ -235,13 +235,17 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  c_dev = device->dev;
 	}
 
+      /* Remove all permissions to others */
+      e_stat = dev_parent->stat;
+      e_stat.st_mode &= ~(S_IROTH | S_IWOTH | S_IXOTH);
+
       /* Add func entry */
       memset (entry_name, 0, NAME_SIZE);
       snprintf (entry_name, NAME_SIZE, "%01u", device->func);
       err =
 	create_dir_entry (c_domain, device->bus, device->dev, device->func,
 			  device->device_class, entry_name, dev_parent,
-			  dev_parent->stat, 0, device, e);
+			  e_stat, 0, device, e);
       if (err)
 	return err;
 

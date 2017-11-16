@@ -44,13 +44,14 @@ check_permissions (struct protid *master, int bus, int dev, int func,
     return err;
 
   /* Check wheter the request has been sent to the proper node */
-  if (e->domain > 0)
-    err = EINVAL;		/* Only domain 0 can be accessed by I/O ports */
-  if (e->bus >= 0 && bus != e->bus)
+  if (e->domain != 0		/* Only domain 0 can be accessed by I/O ports */
+      || e->bus < 0 || e->dev < 0 || e->func < 0)
+    err = EINVAL;
+  else if (bus != e->bus)
     err = EPERM;
-  if (e->dev >= 0 && dev != e->dev)
+  else if (dev != e->dev)
     err = EPERM;
-  if (e->func >= 0 && func != e->func)
+  else if (func != e->func)
     err = EPERM;
 
   return err;
