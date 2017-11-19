@@ -24,8 +24,9 @@
 #include <fcntl.h>
 #include <hurd/netfs.h>
 
-#include <pcifs.h>
 #include <pci_access.h>
+#include <pcifs.h>
+#include <func_files.h>
 
 static error_t
 check_permissions (struct protid *master, int bus, int dev, int func,
@@ -95,6 +96,11 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
+  e = master->po->np->nn->ln;
+  if(strncpy(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may be addressed only to the config file*/
+    return EINVAL;
+
   lock = &fs->pci_conf_lock;
 
   err = check_permissions (master, bus, dev, func, O_READ);
@@ -120,7 +126,6 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
     {
       *datalen = amount;
       /* Update atime, only if this is not a directory */
-      e = master->po->np->nn->ln;
       if (!S_ISDIR (e->stat.st_mode))
 	UPDATE_TIMES (e, TOUCH_ATIME);
     }
@@ -141,6 +146,11 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
   if (!master)
     return EOPNOTSUPP;
 
+  e = master->po->np->nn->ln;
+  if(strncpy(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may be addressed only to the config file*/
+    return EINVAL;
+
   lock = &fs->pci_conf_lock;
 
   err = check_permissions (master, bus, dev, func, O_WRITE);
@@ -155,7 +165,6 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     {
       *amount = datalen;
       /* Update mtime and ctime, only if this is not a directory */
-      e = master->po->np->nn->ln;
       if (!S_ISDIR (e->stat.st_mode))
 	UPDATE_TIMES (e, TOUCH_MTIME | TOUCH_CTIME);
     }
