@@ -102,8 +102,8 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
     return ENOMEM;
   np->nn_stat = underlying_node_stat;
   np->nn_stat.st_fsid = getpid ();
-  np->nn_stat.st_mode = S_IFDIR | (underlying_node_stat.st_mode
-				   & ~S_IFMT & ~S_ITRANS);
+  np->nn_stat.st_mode = S_IFDIR | S_IROOT
+    | (underlying_node_stat.st_mode & ~S_IFMT & ~S_ITRANS);
   np->nn_translated = np->nn_stat.st_mode;
 
   /* If the underlying node isn't a directory, enhance the stat
@@ -188,10 +188,12 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   /* Add an entry for domain = 0. We still don't support PCI express */
   e = list + 1;
   c_domain = 0;
+  e_stat = list->stat;
+  e_stat.st_mode &= ~S_IROOT;	/* Remove the root mode */
   memset (entry_name, 0, NAME_SIZE);
   snprintf (entry_name, NAME_SIZE, "%04x", c_domain);
   err = create_dir_entry (c_domain, -1, -1, -1, -1, entry_name, list,
-			  list->stat, 0, 0, e);
+			  e_stat, 0, 0, e);
   if (err)
     return err;
 
