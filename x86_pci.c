@@ -310,7 +310,7 @@ pci_device_x86_regions_probe (struct pci_device *dev)
   error_t err;
   uint8_t hdrtype;
   uint32_t reg;
-  int i, bar;
+  int i, bar, memfd;
 
   err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &hdrtype,
 		       sizeof (hdrtype));
@@ -372,6 +372,27 @@ pci_device_x86_regions_probe (struct pci_device *dev)
       else
 	{
 	  dev->regions[i].base_addr = get_map_base (addr);
+	}
+
+      if (!dev->regions[i].is_IO)
+	{
+	  /* Map the region in our space */
+	  memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
+	  if (memfd == -1)
+	    return errno;
+
+	  dev->regions[i].memory =
+	    mmap (NULL, dev->regions[i].size, PROT_READ, 0, memfd,
+		  dev->regions[i].base_addr);
+	  if (dev->regions[i].memory == MAP_FAILED)
+	    {
+	      dev->regions[i].memory = 0;
+	      close (memfd);
+	      continue;
+	    }
+
+	  close (memfd);
+
 	}
     }
 

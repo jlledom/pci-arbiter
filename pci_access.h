@@ -73,11 +73,6 @@ struct pci_mem_region
 {
   /*
    * When the region is mapped, this is the pointer to the memory.
-   *
-   * This field is \b only set when the deprecated \c pci_device_map_region
-   * interface is used.  Use \c pci_device_map_range instead.
-   *
-   * \deprecated
    */
   void *memory;
 
