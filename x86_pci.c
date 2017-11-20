@@ -42,7 +42,7 @@
 
 #include <pci_access.h>
 
-static int
+static error_t
 x86_enable_io (void)
 {
   if (!ioperm (0, 0xffff, 1))
@@ -50,7 +50,7 @@ x86_enable_io (void)
   return errno;
 }
 
-static int
+static error_t
 x86_disable_io (void)
 {
   if (!ioperm (0, 0xffff, 0))
@@ -58,7 +58,7 @@ x86_disable_io (void)
   return errno;
 }
 
-static int
+static error_t
 pci_system_x86_conf1_probe (void)
 {
   unsigned long sav;
@@ -74,13 +74,13 @@ pci_system_x86_conf1_probe (void)
   return res;
 }
 
-static int
+static error_t
 pci_system_x86_conf1_read (unsigned bus, unsigned dev, unsigned func,
 			   pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xCFC + (reg & 3);
   unsigned long sav;
-  int ret = 0;
+  error_t ret = 0;
 
   if (bus >= 0x100 || dev >= 32 || func >= 8 || reg >= 0x100 || size > 4
       || size == 3)
@@ -116,13 +116,13 @@ pci_system_x86_conf1_read (unsigned bus, unsigned dev, unsigned func,
   return ret;
 }
 
-static int
+static error_t
 pci_system_x86_conf1_write (unsigned bus, unsigned dev, unsigned func,
 			    pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xCFC + (reg & 3);
   unsigned long sav;
-  int ret = 0;
+  error_t ret = 0;
 
   if (bus >= 0x100 || dev >= 32 || func >= 8 || reg >= 0x100 || size > 4
       || size == 3)
@@ -158,7 +158,7 @@ pci_system_x86_conf1_write (unsigned bus, unsigned dev, unsigned func,
   return ret;
 }
 
-static int
+static error_t
 pci_system_x86_conf2_probe (void)
 {
   outb (0, 0xCFB);
@@ -170,12 +170,12 @@ pci_system_x86_conf2_probe (void)
   return ENODEV;
 }
 
-static int
+static error_t
 pci_system_x86_conf2_read (unsigned bus, unsigned dev, unsigned func,
 			   pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xC000 | dev << 8 | reg;
-  int ret = 0;
+  error_t ret = 0;
 
   if (bus >= 0x100 || dev >= 16 || func >= 8 || reg >= 0x100)
     return EIO;
@@ -212,12 +212,12 @@ pci_system_x86_conf2_read (unsigned bus, unsigned dev, unsigned func,
   return ret;
 }
 
-static int
+static error_t
 pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
 			    pciaddr_t reg, void *data, unsigned size)
 {
   unsigned addr = 0xC000 | dev << 8 | reg;
-  int ret = 0;
+  error_t ret = 0;
 
   if (bus >= 0x100 || dev >= 16 || func >= 8 || reg >= 0x100)
     return EIO;
@@ -355,7 +355,7 @@ pci_device_x86_rom_probe (struct pci_device *dev)
 }
 
 /* Check that this really looks like a PCI configuration. */
-static int
+static error_t
 pci_system_x86_check (struct pci_system *pci_sys)
 {
   int dev;
@@ -379,7 +379,7 @@ pci_system_x86_check (struct pci_system *pci_sys)
   return ENODEV;
 }
 
-static int
+static error_t
 pci_probe (struct pci_system *pci_sys)
 {
   if (pci_system_x86_conf1_probe () == 0)
@@ -401,11 +401,11 @@ pci_probe (struct pci_system *pci_sys)
   return ENODEV;
 }
 
-static int
+static error_t
 pci_nfuncs (struct pci_system *pci_sys, int bus, int dev)
 {
   uint8_t hdr;
-  int err;
+  error_t err;
 
   err = pci_sys->read (bus, dev, 0, PCI_HDRTYPE, &hdr, sizeof (hdr));
 
@@ -415,16 +415,17 @@ pci_nfuncs (struct pci_system *pci_sys, int bus, int dev)
   return hdr & 0x80 ? 8 : 1;
 }
 
-int
+error_t
 pci_system_x86_create (void)
 {
   struct pci_device *device;
-  int ret, bus, dev, ndevs, func, nfuncs;
+  error_t err;
+  int bus, dev, ndevs, func, nfuncs;
   uint32_t reg;
 
-  ret = x86_enable_io ();
-  if (ret)
-    return ret;
+  err = x86_enable_io ();
+  if (err)
+    return err;
 
   pci_sys = calloc (1, sizeof (struct pci_system));
   if (pci_sys == NULL)
@@ -433,12 +434,12 @@ pci_system_x86_create (void)
       return ENOMEM;
     }
 
-  ret = pci_probe (pci_sys);
-  if (ret)
+  err = pci_probe (pci_sys);
+  if (err)
     {
       x86_disable_io ();
       free (pci_sys);
-      return ret;
+      return err;
     }
 
   ndevs = 0;
