@@ -264,67 +264,74 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   void *rom_mapped;
   int memfd;
 
-  /* First we need to know which type of header is this */
-  if (pci_sys->
-      read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &reg_8,
-	    sizeof (reg_8)) != 0)
-    return -1;
-
-  /* Get the XROMBAR register address */
-  switch (reg_8 & 0x3)
+  /*
+   * If it's a VGA device, use the 0xc0000 mapping.
+   */
+  if ((dev->device_class & 0x00ffff00) == (PCI_CLASS_DISPLAY_VGA << 8))
     {
-    case PCI_HDRTYPE_DEVICE:
-      xrombar_addr = PCI_XROMBAR_ADDR_00;
-      break;
-    case PCI_HDRTYPE_BRIDGE:
-      xrombar_addr = PCI_XROMBAR_ADDR_01;
-      break;
-    default:
-      return -1;
+      rom_size = 64 * 1024;
+      rom_addr = 0xc0000;
     }
+  else
+    {
 
-  /* Get size and physical address */
-  if (pci_sys->
-      read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-	    sizeof (reg)) != 0)
-    return -1;
+      /* Else, read the XROMBAR */
+      /* First we need to know which type of header is this */
+      if (pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &reg_8,
+			 sizeof (reg_8)) != 0)
+	return -1;
 
-  reg_back = reg;
-  reg = 0xFFFFF800; /* Base address: first 21 bytes */
-  if (pci_sys->
-      write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-	     sizeof (reg)) != 0)
-    return -1;
-  if (pci_sys->
-      read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-	    sizeof (reg)) != 0)
-    return -1;
+      /* Get the XROMBAR register address */
+      switch (reg_8 & 0x3)
+	{
+	case PCI_HDRTYPE_DEVICE:
+	  xrombar_addr = PCI_XROMBAR_ADDR_00;
+	  break;
+	case PCI_HDRTYPE_BRIDGE:
+	  xrombar_addr = PCI_XROMBAR_ADDR_01;
+	  break;
+	default:
+	  return -1;
+	}
 
-  rom_size = (~reg + 1);
-  rom_addr = reg_back & reg;
+      /* Get size and physical address */
+      if (pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+			 sizeof (reg)) != 0)
+	return -1;
 
-  if (rom_size == 0)
-    return -1;
+      reg_back = reg;
+      reg = 0xFFFFF800;		/* Base address: first 21 bytes */
+      if (pci_sys->write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+			  sizeof (reg)) != 0)
+	return -1;
+      if (pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+			 sizeof (reg)) != 0)
+	return -1;
 
-  /* Enable the address decoder and write the physical address back */
-  reg_back |= 0x1;
-  if (pci_sys->
-      write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg_back,
-	     sizeof (reg_back)) != 0)
-    return -1;
+      rom_size = (~reg + 1);
+      rom_addr = reg_back & reg;
 
-  /* Enable the Memory Space bit */
-  if (pci_sys->
-      read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-	     sizeof (reg)) != 0)
-    return -1;
+      if (rom_size == 0)
+	return -1;
 
-  reg |= 0x2;
+      /* Enable the address decoder and write the physical address back */
+      reg_back |= 0x1;
+      if (pci_sys->write
+	  (dev->bus, dev->dev, dev->func, xrombar_addr, &reg_back,
+	   sizeof (reg_back)) != 0)
+	return -1;
 
-  if (pci_sys->
-      write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-	     sizeof (reg)) != 0)
-    return -1;
+      /* Enable the Memory Space bit */
+      if (pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+			 sizeof (reg)) != 0)
+	return -1;
+
+      reg |= 0x2;
+
+      if (pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+			  sizeof (reg)) != 0)
+	return -1;
+    }
 
   /* Map the ROM in our space */
   memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
