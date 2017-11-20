@@ -67,6 +67,59 @@ typedef int (*pciop_t) (unsigned bus, unsigned dev, unsigned func,
 			pciaddr_t reg, void *data, unsigned size);
 
 /*
+ * BAR descriptor for a PCI device.
+ */
+struct pci_mem_region
+{
+  /*
+   * When the region is mapped, this is the pointer to the memory.
+   *
+   * This field is \b only set when the deprecated \c pci_device_map_region
+   * interface is used.  Use \c pci_device_map_range instead.
+   *
+   * \deprecated
+   */
+  void *memory;
+
+  /*
+   * Base physical address of the region from the CPU's point of view.
+   *
+   * This address is typically passed to \c pci_device_map_range to create
+   * a mapping of the region to the CPU's virtual address space.
+   */
+  pciaddr_t base_addr;
+
+
+  /*
+   * Size, in bytes, of the region.
+   */
+  pciaddr_t size;
+
+
+  /*
+   * Is the region I/O ports or memory?
+   */
+  unsigned is_IO:1;
+
+  /*
+   * Is the memory region prefetchable?
+   *
+   * \note
+   * This can only be set if \c is_IO is not set.
+   */
+  unsigned is_prefetchable:1;
+
+
+  /*
+   * Is the memory at a 64-bit address?
+   *
+   * \note
+   * This can only be set if \c is_IO is not set.
+   */
+  unsigned is_64:1;
+};
+
+/*
  * PCI device.
  *
  * Contains all of the information about a particular PCI device.
@@ -89,6 +142,11 @@ struct pci_device
    * bits [15:8], and programming interface is at [7:0].
    */
   uint32_t device_class;
+
+  /*
+   * BAR descriptors for the device.
+   */
+  struct pci_mem_region regions[6];
 
   /*
    * Size, in bytes, of the device's expansion ROM.

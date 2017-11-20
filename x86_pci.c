@@ -254,6 +254,130 @@ pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
   return ret;
 }
 
+/* Returns the number of regions (base address registers) the device has */
+static int
+pci_device_hurd_get_num_regions (uint8_t header_type)
+{
+  switch (header_type & 0x7f)
+    {
+    case 0:
+      return 6;
+    case 1:
+      return 2;
+    case 2:
+      return 1;
+    default:
+      return 0;
+    }
+}
+
+/* Masks out the flag bigs of the base address register value */
+static uint32_t
+get_map_base (uint32_t val)
+{
+  if (val & 0x01)
+    return val & ~0x03;
+  else
+    return val & ~0x0f;
+}
+
+/* Returns the size of a region based on the all-ones test value */
+static unsigned
+get_test_val_size (uint32_t testval)
+{
+  unsigned size = 1;
+
+  if (testval == 0)
+    return 0;
+
+  /* Mask out the flag bits */
+  testval = get_map_base (testval);
+  if (!testval)
+    return 0;
+
+  while ((testval & 1) == 0)
+    {
+      size <<= 1;
+      testval >>= 1;
+    }
+
+  return size;
+}
+
+static error_t
+pci_device_x86_regions_probe (struct pci_device *dev)
+{
+  error_t err;
+  uint8_t hdrtype;
+  uint32_t reg;
+  int i, bar;
+
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &hdrtype,
+		       sizeof (hdrtype));
+  if (err)
+    return err;
+
+  bar = 0x10;
+  for (i = 0; i < pci_device_hurd_get_num_regions (hdrtype); i++, bar += 4)
+    {
+      uint32_t addr, testval;
+
+      /* Get the base address */
+      err =
+	pci_sys->read (dev->bus, dev->dev, dev->func, bar, &addr,
+		       sizeof (addr));
+      if (err)
+	continue;
+
+      /* Test write all ones to the register, then restore it. */
+      reg = 0xffffffff;
+      err = pci_sys->write (dev->bus, dev->dev, dev->func, bar, &reg,
+			    sizeof (reg));
+      if (err)
+	continue;
+      err = pci_sys->read (dev->bus, dev->dev, dev->func, bar, &testval,
+			   sizeof (testval));
+      if (err)
+	continue;
+      err = pci_sys->write (dev->bus, dev->dev, dev->func, bar, &addr,
+			    sizeof (addr));
+      if (err)
+	continue;
+
+      if (addr & 0x01)
+	dev->regions[i].is_IO = 1;
+      if (addr & 0x04)
+	dev->regions[i].is_64 = 1;
+      if (addr & 0x08)
+	dev->regions[i].is_prefetchable = 1;
+
+      /* Set the size */
+      dev->regions[i].size = get_test_val_size (testval);
+
+      /* Set the base address value */
+      if (dev->regions[i].is_64)
+	{
+	  uint32_t top;
+
+	  err = pci_sys->read (dev->bus, dev->dev, dev->func, bar + 4, &top,
+			       sizeof (top));
+	  if (err)
+	    continue;
+
+	  dev->regions[i].base_addr = ((uint64_t) top << 32) |
+	    get_map_base (addr);
+	  bar += 4;
+	  i++;
+	}
+      else
+	{
+	  dev->regions[i].base_addr = get_map_base (addr);
+	}
+    }
+
+  return 0;
+}
+
 static error_t
 pci_device_x86_rom_probe (struct pci_device *dev)
 {
@@ -503,7 +627,13 @@ pci_system_x86_create (void)
 		continue;
 	      device->device_class = reg >> 8;
 
-	      pci_device_x86_rom_probe (device);
+	      err = pci_device_x86_rom_probe (device);
+	      if (err)
+		return err;
+
+	      err = pci_device_x86_regions_probe (device);
+	      if (err)
+		return err;
 
 	      device++;
 	    }
