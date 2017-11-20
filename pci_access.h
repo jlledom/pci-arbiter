@@ -96,9 +96,14 @@ struct pci_device
   pciaddr_t rom_size;
 
   /*
+   * Physical address of the ROM
+   */
+  pciaddr_t rom_addr;
+
+  /*
    * Mapped ROM
    */
-  void *rom_addr;
+  void *rom_memory;
 };
 
 /* Global PCI data */

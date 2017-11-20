@@ -102,7 +102,7 @@ read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
   if ((offset + *len) > dev->rom_size)
     *len = dev->rom_size - offset;
 
-  memcpy (data, dev->rom_addr + offset, *len);
+  memcpy (data, dev->rom_memory + offset, *len);
 
   return 0;
 }

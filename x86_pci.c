@@ -348,7 +348,8 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   close (memfd);
 
   dev->rom_size = rom_size;
-  dev->rom_addr = rom_mapped;
+  dev->rom_addr = rom_addr;
+  dev->rom_memory = rom_mapped;
 
   return 0;
 }
