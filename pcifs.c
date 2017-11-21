@@ -149,7 +149,7 @@ error_t
 create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 {
   error_t err = 0;
-  int c_domain, c_bus, c_dev, i;
+  int c_domain, c_bus, c_dev, i, j;
   size_t nentries;
   struct pci_device *device;
   struct pcifs_dirent *e, *domain_parent, *bus_parent, *dev_parent,
@@ -176,6 +176,10 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	}
 
       nentries += 2;		/* func dir + config */
+
+      for (j = 0; j < 6; j++)
+	if (device->regions[j].size > 0)
+	  nentries++;		/* + memory region */
 
       if (device->rom_addr)
 	nentries++;		/* + rom */
@@ -267,6 +271,23 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 			  e_stat, 0, device, e++);
       if (err)
 	return err;
+
+      /* Create regions entries */
+      for (j = 0; j < 6; j++)
+	{
+	  if (device->regions[j].size > 0)
+	    {
+	      e_stat.st_size = device->regions[j].size;
+	      snprintf (entry_name, NAME_SIZE, "%s%01u", FILE_REGION_NAME, j);
+	      err =
+		create_dir_entry (c_domain, device->bus, device->dev,
+				  device->func, device->device_class,
+				  entry_name, func_parent, e_stat, 0, device,
+				  e++);
+	      if (err)
+		return err;
+	    }
+	}
 
       /* Create rom entry */
       if (device->rom_addr)

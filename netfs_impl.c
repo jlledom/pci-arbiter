@@ -481,6 +481,14 @@ netfs_attempt_read (struct iouser * cred, struct node * node,
 	/* Update atime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
     }
+  else if (!strncmp
+	   (node->nn->ln->name, FILE_REGION_NAME, strlen (FILE_REGION_NAME)))
+    {
+      err = read_region_file (node->nn->ln, offset, len, data);
+      if (!err)
+	/* Update atime */
+	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
+    }
   else
     return EOPNOTSUPP;
 
@@ -501,6 +509,14 @@ netfs_attempt_write (struct iouser * cred, struct node * node,
       err = io_config_file (node->nn->ln->device, offset, len, data, pci_sys->write);
       if (!err)
 	/* Update mtime and ctime */
+	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
+    }
+  else if (!strncmp
+	   (node->nn->ln->name, FILE_REGION_NAME, strlen (FILE_REGION_NAME)))
+    {
+      err = write_region_file (node->nn->ln, offset, len, data);
+      if (!err)
+	/* Update atime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
     }
   else

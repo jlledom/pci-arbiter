@@ -403,8 +403,8 @@ pci_device_x86_regions_probe (struct pci_device *dev)
 	    return errno;
 
 	  dev->regions[i].memory =
-	    mmap (NULL, dev->regions[i].size, PROT_READ, 0, memfd,
-		  dev->regions[i].base_addr);
+	    mmap (NULL, dev->regions[i].size, PROT_READ | PROT_WRITE, 0,
+		  memfd, dev->regions[i].base_addr);
 	  if (dev->regions[i].memory == MAP_FAILED)
 	    {
 	      dev->regions[i].memory = 0;

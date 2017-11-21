@@ -31,10 +31,19 @@
 /* Rom */
 #define FILE_ROM_NAME     "rom"
 
+/* Region */
+#define FILE_REGION_NAME     "region"
+
 error_t io_config_file (struct pci_device *dev, off_t offset, size_t * len,
 			void *data, pciop_t op);
 
 error_t read_rom_file (struct pci_device *dev, off_t offset, size_t * len,
 		       void *data);
+
+error_t read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
+			  void *data);
+
+error_t write_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
+			   void *data);
 
 #endif /* FUNC_FILES_H */

@@ -22,6 +22,7 @@
 #include <func_files.h>
 
 #include <assert.h>
+#include <sys/io.h>
 
 static error_t
 config_block_op (struct pci_device *dev, off_t offset, size_t * len,
@@ -110,6 +111,110 @@ read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
     *len = dev->rom_size - offset;
 
   memcpy (data, dev->rom_memory + offset, *len);
+
+  return 0;
+}
+
+static error_t
+region_block_ioport_op (uint16_t port, off_t offset, size_t * len,
+			void *data, int read)
+{
+  size_t pending = *len;
+
+  while (pending >= 4)
+    {
+      /* read == true: read; else: write */
+      if (read)
+	*((unsigned int *) data) = inl (port + offset);
+      else
+	outl (*((unsigned int *) data), port + offset);
+
+      offset += 4;
+      data += 4;
+      pending -= 4;
+    }
+
+  if (pending >= 2)
+    {
+      if (read)
+	*((unsigned short *) data) = inw (port + offset);
+      else
+	outw (*((unsigned short *) data), port + offset);
+
+      offset += 2;
+      data += 2;
+      pending -= 2;
+    }
+
+  if (pending)
+    {
+      if (read)
+	*((unsigned char *) data) = inb (port + offset);
+      else
+	outb (*((unsigned char *) data), port + offset);
+
+      offset++;
+      data++;
+      pending--;
+    }
+
+  *len -= pending;
+
+  return 0;
+}
+
+error_t
+read_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+		  void *data)
+{
+  size_t reg_num;
+  struct pci_mem_region *region;
+
+  /* This should never happen */
+  assert_backtrace (e->device != 0);
+
+  /* Get the region */
+  reg_num = strtol (&e->name[strlen (e->name) - 1], 0, 16);
+  region = &e->device->regions[reg_num];
+
+  /* Don't exceed the ROM size */
+  if (offset > region->size)
+    return EINVAL;
+  if ((offset + *len) > region->size)
+    *len = region->size - offset;
+
+  if (region->is_IO)
+    region_block_ioport_op (region->base_addr, offset, len, data, 1);
+  else
+    memcpy (data, region->memory + offset, *len);
+
+  return 0;
+}
+
+error_t
+write_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+		   void *data)
+{
+  size_t reg_num;
+  struct pci_mem_region *region;
+
+  /* This should never happen */
+  assert_backtrace (e->device != 0);
+
+  /* Get the region */
+  reg_num = strtol (&e->name[strlen (e->name) - 1], 0, 16);
+  region = &e->device->regions[reg_num];
+
+  /* Don't exceed the ROM size */
+  if (offset > region->size)
+    return EINVAL;
+  if ((offset + *len) > region->size)
+    *len = region->size - offset;
+
+  if (region->is_IO)
+    region_block_ioport_op (region->base_addr, offset, len, data, 0);
+  else
+    memcpy (region->memory + offset, data, *len);
 
   return 0;
 }
