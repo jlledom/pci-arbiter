@@ -374,8 +374,46 @@ pci_device_x86_regions_probe (struct pci_device *dev)
 	  dev->regions[i].base_addr = get_map_base (addr);
 	}
 
-      if (!dev->regions[i].is_IO)
+      if (dev->regions[i].is_IO)
 	{
+	  /* Enable the I/O Space bit */
+	  err =
+	    pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+			   sizeof (reg));
+	  if (err)
+	    return err;
+
+	  if (!(reg & 0x1))
+	    {
+	      reg |= 0x1;
+
+	      err =
+		pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
+				&reg, sizeof (reg));
+	      if (err)
+		return err;
+	    }
+	}
+      else
+	{
+	  /* Enable the Memory Space bit */
+	  err =
+	    pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+			   sizeof (reg));
+	  if (err)
+	    return err;
+
+	  if (!(reg & 0x2))
+	    {
+	      reg |= 0x2;
+
+	      err =
+		pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
+				&reg, sizeof (reg));
+	      if (err)
+		return err;
+	    }
+
 	  /* Map the region in our space */
 	  memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
 	  if (memfd == -1)
@@ -478,12 +516,16 @@ pci_device_x86_rom_probe (struct pci_device *dev)
       if (err)
 	return err;
 
-      reg |= 0x2;
+      if (!(reg & 0x2))
+	{
+	  reg |= 0x2;
 
-      err = pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+	  err =
+	    pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
 			    sizeof (reg));
-      if (err)
-	return err;
+	  if (err)
+	    return err;
+	}
     }
 
   /* Map the ROM in our space */
