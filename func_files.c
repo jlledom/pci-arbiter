@@ -78,6 +78,8 @@ io_config_file (struct pci_device *dev, off_t offset, size_t * len,
   assert_backtrace (dev != 0);
 
   /* Don't exceed the config space size */
+  if(offset > FILE_CONFIG_SIZE)
+    return EINVAL;
   if ((offset + *len) > FILE_CONFIG_SIZE)
     *len = FILE_CONFIG_SIZE - offset;
 
@@ -102,6 +104,8 @@ read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
   assert_backtrace (dev != 0);
 
   /* Don't exceed the ROM size */
+  if(offset > dev->rom_size)
+    return EINVAL;
   if ((offset + *len) > dev->rom_size)
     *len = dev->rom_size - offset;
 
