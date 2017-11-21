@@ -469,7 +469,9 @@ netfs_attempt_read (struct iouser * cred, struct node * node,
 
   if (!strncmp (node->nn->ln->name, FILE_CONFIG_NAME, NAME_SIZE))
     {
-      err = io_config_file (node->nn->ln->device, offset, len, data, pci_sys->read);
+      err =
+	io_config_file (node->nn->ln->device, offset, len, data,
+			pci_sys->read);
       if (!err)
 	/* Update atime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
@@ -506,7 +508,9 @@ netfs_attempt_write (struct iouser * cred, struct node * node,
 
   if (!strncmp (node->nn->ln->name, FILE_CONFIG_NAME, NAME_SIZE))
     {
-      err = io_config_file (node->nn->ln->device, offset, len, data, pci_sys->write);
+      err =
+	io_config_file (node->nn->ln->device, offset, len, data,
+			pci_sys->write);
       if (!err)
 	/* Update mtime and ctime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);

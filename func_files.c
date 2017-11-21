@@ -25,7 +25,7 @@
 #include <sys/io.h>
 
 static error_t
-config_block_op (struct pci_device *dev, off_t offset, size_t * len,
+config_block_op (struct pci_device *dev, off_t offset, size_t *len,
 		 void *data, pciop_t op)
 {
   error_t err;
@@ -70,7 +70,7 @@ config_block_op (struct pci_device *dev, off_t offset, size_t * len,
 }
 
 error_t
-io_config_file (struct pci_device *dev, off_t offset, size_t * len,
+io_config_file (struct pci_device *dev, off_t offset, size_t *len,
 		void *data, pciop_t op)
 {
   error_t err;
@@ -79,7 +79,7 @@ io_config_file (struct pci_device *dev, off_t offset, size_t * len,
   assert_backtrace (dev != 0);
 
   /* Don't exceed the config space size */
-  if(offset > FILE_CONFIG_SIZE)
+  if (offset > FILE_CONFIG_SIZE)
     return EINVAL;
   if ((offset + *len) > FILE_CONFIG_SIZE)
     *len = FILE_CONFIG_SIZE - offset;
@@ -98,14 +98,14 @@ io_config_file (struct pci_device *dev, off_t offset, size_t * len,
 }
 
 error_t
-read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
+read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
 	       void *data)
 {
   /* This should never happen */
   assert_backtrace (dev != 0);
 
   /* Don't exceed the ROM size */
-  if(offset > dev->rom_size)
+  if (offset > dev->rom_size)
     return EINVAL;
   if ((offset + *len) > dev->rom_size)
     *len = dev->rom_size - offset;
@@ -116,7 +116,7 @@ read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
 }
 
 static error_t
-region_block_ioport_op (uint16_t port, off_t offset, size_t * len,
+region_block_ioport_op (uint16_t port, off_t offset, size_t *len,
 			void *data, int read)
 {
   size_t pending = *len;
@@ -164,7 +164,7 @@ region_block_ioport_op (uint16_t port, off_t offset, size_t * len,
 }
 
 error_t
-read_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
 		  void *data)
 {
   size_t reg_num;
@@ -192,7 +192,7 @@ read_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
 }
 
 error_t
-write_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+write_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
 		   void *data)
 {
   size_t reg_num;
