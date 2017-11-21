@@ -24,7 +24,7 @@
 #include <assert.h>
 
 static error_t
-config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
+config_block_op (struct pci_device *dev, off_t offset, size_t * len,
 		 void *data, pciop_t op)
 {
   error_t err;
@@ -32,7 +32,7 @@ config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
 
   while (pendent >= 4)
     {
-      err = op (e->bus, e->dev, e->func, offset, data, 4);
+      err = op (dev->bus, dev->dev, dev->func, offset, data, 4);
       if (err)
 	return err;
 
@@ -43,7 +43,7 @@ config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
 
   if (pendent >= 2)
     {
-      err = op (e->bus, e->dev, e->func, offset, data, 2);
+      err = op (dev->bus, dev->dev, dev->func, offset, data, 2);
       if (err)
 	return err;
 
@@ -54,7 +54,7 @@ config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
 
   if (pendent)
     {
-      err = op (e->bus, e->dev, e->func, offset, data, 1);
+      err = op (dev->bus, dev->dev, dev->func, offset, data, 1);
       if (err)
 	return err;
 
@@ -69,10 +69,13 @@ config_block_op (struct pcifs_dirent *e, off_t offset, size_t * len,
 }
 
 error_t
-io_config_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+io_config_file (struct pci_device *dev, off_t offset, size_t * len,
 		void *data, pciop_t op)
 {
   error_t err;
+
+  /* This should never happen */
+  assert_backtrace (dev != 0);
 
   /* Don't exceed the config space size */
   if ((offset + *len) > FILE_CONFIG_SIZE)
@@ -85,7 +88,7 @@ io_config_file (struct pcifs_dirent * e, off_t offset, size_t * len,
   else
     return EINVAL;
 
-  err = config_block_op (e, offset, len, data, op);
+  err = config_block_op (dev, offset, len, data, op);
   pthread_rwlock_unlock (&fs->pci_conf_lock);
 
   return err;

@@ -31,7 +31,7 @@
 /* Rom */
 #define FILE_ROM_NAME     "rom"
 
-error_t io_config_file (struct pcifs_dirent * e, off_t offset, size_t * len,
+error_t io_config_file (struct pci_device *dev, off_t offset, size_t * len,
 			void *data, pciop_t op);
 
 error_t read_rom_file (struct pci_device *dev, off_t offset, size_t * len,
