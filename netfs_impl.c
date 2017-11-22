@@ -93,7 +93,7 @@ get_dirents (struct pcifs_dirent *dir,
       int entry_type;
 
       e = dir->dir->entries[i + first_entry];
-      name_len = strlen (e->name);
+      name_len = strlen (e->name) +1;
       sz = DIRENT_LEN (name_len);
       entry_type = IFTODT (e->stat.st_mode);
 
