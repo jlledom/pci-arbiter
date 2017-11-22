@@ -97,8 +97,8 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
     return EOPNOTSUPP;
 
   e = master->po->np->nn->ln;
-  if(strncpy(e->name, FILE_CONFIG_NAME, NAME_SIZE))
-    /* This operation may be addressed only to the config file*/
+  if(strncmp(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may only be addressed to the config file */
     return EINVAL;
 
   lock = &fs->pci_conf_lock;
@@ -147,8 +147,8 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     return EOPNOTSUPP;
 
   e = master->po->np->nn->ln;
-  if(strncpy(e->name, FILE_CONFIG_NAME, NAME_SIZE))
-    /* This operation may be addressed only to the config file*/
+  if(strncmp(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may only be addressed to the config file */
     return EINVAL;
 
   lock = &fs->pci_conf_lock;
