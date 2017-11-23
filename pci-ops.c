@@ -19,14 +19,25 @@
 
 /* Implementation of PCI operations */
 
-#include <pci_conf_S.h>
+#include <pci_S.h>
 
 #include <fcntl.h>
 #include <hurd/netfs.h>
+#include <sys/mman.h>
 
 #include <pci_access.h>
 #include <pcifs.h>
 #include <func_files.h>
+
+/* Memory region info, to be sent through RPCs */
+struct dev_region
+{
+  pciaddr_t base_addr;
+  pciaddr_t size;
+  unsigned is_IO:1;
+  unsigned is_prefetchable:1;
+  unsigned is_64:1;
+};
 
 static error_t
 check_permissions (struct protid *master, int bus, int dev, int func,
@@ -85,8 +96,8 @@ calculate_ndevs (struct iouser *user)
  * `*datalen' is updated.
  */
 error_t
-S_pci_conf_read (struct protid * master, int bus, int dev, int func,
-		 int reg, char **data, size_t * datalen,
+S_pci_conf_read (struct protid *master, int bus, int dev, int func,
+		 int reg, char **data, size_t *datalen,
 		 mach_msg_type_number_t amount)
 {
   error_t err;
@@ -97,7 +108,7 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
     return EOPNOTSUPP;
 
   e = master->po->np->nn->ln;
-  if(strncmp(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+  if (strncmp (e->name, FILE_CONFIG_NAME, NAME_SIZE))
     /* This operation may only be addressed to the config file */
     return EINVAL;
 
@@ -125,9 +136,8 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
   if (!err)
     {
       *datalen = amount;
-      /* Update atime, only if this is not a directory */
-      if (!S_ISDIR (e->stat.st_mode))
-	UPDATE_TIMES (e, TOUCH_ATIME);
+      /* Update atime */
+      UPDATE_TIMES (e, TOUCH_ATIME);
     }
 
   return err;
@@ -135,9 +145,9 @@ S_pci_conf_read (struct protid * master, int bus, int dev, int func,
 
 /* Write `datalen' bytes from `data'. `amount' is updated. */
 error_t
-S_pci_conf_write (struct protid * master, int bus, int dev, int func,
+S_pci_conf_write (struct protid *master, int bus, int dev, int func,
 		  int reg, char *data, size_t datalen,
-		  mach_msg_type_number_t * amount)
+		  mach_msg_type_number_t *amount)
 {
   error_t err;
   pthread_rwlock_t *lock;
@@ -147,7 +157,7 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
     return EOPNOTSUPP;
 
   e = master->po->np->nn->ln;
-  if(strncmp(e->name, FILE_CONFIG_NAME, NAME_SIZE))
+  if (strncmp (e->name, FILE_CONFIG_NAME, NAME_SIZE))
     /* This operation may only be addressed to the config file */
     return EINVAL;
 
@@ -164,23 +174,75 @@ S_pci_conf_write (struct protid * master, int bus, int dev, int func,
   if (!err)
     {
       *amount = datalen;
-      /* Update mtime and ctime, only if this is not a directory */
-      if (!S_ISDIR (e->stat.st_mode))
-	UPDATE_TIMES (e, TOUCH_MTIME | TOUCH_CTIME);
+      /* Update mtime and ctime */
+      UPDATE_TIMES (e, TOUCH_MTIME | TOUCH_CTIME);
     }
 
   return err;
 }
 
-/* Write in `amount' the number of devices allowed for the 'user'. */
+/* Write in `amount' the number of devices allowed for the user. */
 error_t
-S_pci_conf_get_ndevs (struct protid * master, mach_msg_type_number_t * amount)
+S_pci_get_ndevs (struct protid *master, mach_msg_type_number_t *amount)
 {
   /* This RPC may only be addressed to the root node */
   if (master->po->np != fs->root)
     return EINVAL;
 
   *amount = calculate_ndevs (master->user);
+
+  return 0;
+}
+
+/*
+ * Return in `data' the information about the available memory
+ * regions in the given device.
+ */
+error_t
+S_pci_get_dev_regions (struct protid *master, int bus, int dev, int func,
+		       char **data, size_t *datalen)
+{
+  error_t err;
+  struct pcifs_dirent *e;
+  struct dev_region regions[6], *r;
+  size_t size;
+  int i;
+
+  if (!master)
+    return EOPNOTSUPP;
+
+  e = master->po->np->nn->ln;
+  if (strncmp (e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may only be addressed to the config file */
+    return EINVAL;
+
+  err = check_permissions (master, bus, dev, func, O_READ);
+  if (err)
+    return err;
+
+  /* Allocate memory if needed */
+  size = sizeof (regions);
+  if (size > *datalen)
+    {
+      *data = mmap (0, size, PROT_READ | PROT_WRITE, MAP_ANON, 0, 0);
+      if (*data == MAP_FAILED)
+	return ENOMEM;
+    }
+
+  /* Copy the regions info */
+  for (i = 0, r = (struct dev_region *) *data; i < 6; i++, r++)
+    {
+      r->base_addr = e->device->regions[i].base_addr;
+      r->size = e->device->regions[i].size;
+      r->is_IO = e->device->regions[i].is_IO;
+      r->is_prefetchable = e->device->regions[i].is_prefetchable;
+      r->is_64 = e->device->regions[i].is_64;
+    }
+
+  /* Update atime */
+  UPDATE_TIMES (e, TOUCH_ATIME);
+
+  *datalen = size;
 
   return 0;
 }

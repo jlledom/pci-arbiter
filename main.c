@@ -26,7 +26,7 @@
 #include <argp.h>
 #include <hurd/netfs.h>
 
-#include <pci_conf_S.h>
+#include <pci_S.h>
 #include "libnetfs/io_S.h"
 #include "libnetfs/fs_S.h"
 #include "libports/notify_S.h"
@@ -53,7 +53,7 @@ netfs_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
       (routine = netfs_fsys_server_routine (inp)) ||
       (routine = ports_interrupt_server_routine (inp)) ||
       (routine = netfs_ifsock_server_routine (inp)) ||
-      (routine = pci_conf_server_routine (inp)))
+      (routine = pci_server_routine (inp)))
     {
       (*routine) (inp, outp);
       return TRUE;
