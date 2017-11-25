@@ -35,7 +35,7 @@
 #define FILE_REGION_NAME     "region"
 
 error_t io_config_file (struct pci_device *dev, off_t offset, size_t *len,
-			void *data, pciop_t op);
+			void *data, pci_io_op_t op);
 
 error_t read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
 		       void *data);

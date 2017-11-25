@@ -60,10 +60,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <errno.h>
 
 typedef uint64_t pciaddr_t;
 
-typedef int (*pciop_t) (unsigned bus, unsigned dev, unsigned func,
+typedef error_t (*pci_io_op_t) (unsigned bus, unsigned dev, unsigned func,
 			pciaddr_t reg, void *data, unsigned size);
 
 /*
@@ -166,8 +167,8 @@ struct pci_system
   struct pci_device *devices;
 
   /* Callbacks */
-  pciop_t read;
-  pciop_t write;
+  pci_io_op_t read;
+  pci_io_op_t write;
 };
 
 struct pci_system *pci_sys;
