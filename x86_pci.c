@@ -256,7 +256,7 @@ pci_system_x86_conf2_write (unsigned bus, unsigned dev, unsigned func,
 
 /* Returns the number of regions (base address registers) the device has */
 static int
-pci_device_hurd_get_num_regions (uint8_t header_type)
+pci_device_x86_get_num_regions (uint8_t header_type)
 {
   switch (header_type & 0x7f)
     {
@@ -318,7 +318,7 @@ pci_device_x86_regions_probe (struct pci_device *dev)
     return err;
 
   bar = 0x10;
-  for (i = 0; i < pci_device_hurd_get_num_regions (hdrtype); i++, bar += 4)
+  for (i = 0; i < pci_device_x86_get_num_regions (hdrtype); i++, bar += 4)
     {
       uint32_t addr, testval;
 
