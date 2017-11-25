@@ -75,7 +75,7 @@ check_options_validity (struct parse_hook *h)
 							 || p->domain >= 0)
 							&& !(p->uid >= 0
 							     || p->gid >= 0)))
-	error (1, EINVAL, "Option dependence error");
+	return EINVAL;
     }
 
   return 0;
@@ -163,10 +163,6 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       if (!h)
 	FAIL (ENOMEM, 1, ENOMEM, "option parsing");
 
-      if (fs->root)
-	/* Free previous permissions if we've been called from fsysopts */
-	free (fs->params.perms);
-
       h->permsets = 0;
       h->num_permsets = 0;
       h->ncache_len = NODE_CACHE_MAX;
@@ -180,8 +176,27 @@ parse_opt (int opt, char *arg, struct argp_state *state)
     case ARGP_KEY_SUCCESS:
       /* Check option dependencies */
       err = check_options_validity (h);
+      if (err)
+	{
+	  if (fs->root)
+	    {
+	      /*
+	       * If there's an option dependence error but the server is yet
+	       * running, print the error and do nothing
+	       */
+	      error (0, err, "Invalid options, no changes were applied");
+	      free (h->permsets);
+	      free (h);
+	      break;
+	    }
+	  else
+	    /* Invalid options on a non-started server, exit() */
+	    error (1, err, "Option dependence error");
+	}
 
       /* Set permissions to FS */
+      if (fs->params.perms)
+	free (fs->params.perms);
       fs->params.perms = h->permsets;
       fs->params.num_perms = h->num_permsets;
 
