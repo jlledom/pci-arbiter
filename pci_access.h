@@ -64,9 +64,6 @@
 
 typedef uint64_t pciaddr_t;
 
-typedef error_t (*pci_io_op_t) (unsigned bus, unsigned dev, unsigned func,
-			pciaddr_t reg, void *data, unsigned size);
-
 /*
  * BAR descriptor for a PCI device.
  */
@@ -152,13 +149,19 @@ struct pci_device
   /*
    * Physical address of the ROM
    */
-  pciaddr_t rom_addr;
+  pciaddr_t rom_base;
 
   /*
    * Mapped ROM
    */
   void *rom_memory;
 };
+
+typedef error_t (*pci_io_op_t) (unsigned bus, unsigned dev, unsigned func,
+				pciaddr_t reg, void *data, unsigned size);
+
+typedef error_t (*pci_refresh_dev_op_t) (struct pci_device *dev,
+					 int num_region, int rom);
 
 /* Global PCI data */
 struct pci_system
@@ -169,6 +172,7 @@ struct pci_system
   /* Callbacks */
   pci_io_op_t read;
   pci_io_op_t write;
+  pci_refresh_dev_op_t device_refresh;
 };
 
 struct pci_system *pci_sys;

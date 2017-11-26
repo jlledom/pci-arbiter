@@ -305,128 +305,106 @@ get_test_val_size (uint32_t testval)
 }
 
 static error_t
-pci_device_x86_regions_probe (struct pci_device *dev)
+pci_device_x86_region_probe (struct pci_device *dev, int reg_num)
 {
   error_t err;
-  uint8_t hdrtype;
-  uint32_t reg;
-  int i, bar, memfd;
+  uint8_t offset;
+  uint32_t reg, addr, testval;
+  int memfd;
 
-  err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &hdrtype,
-		       sizeof (hdrtype));
+  offset = PCI_BAR_ADDR_0 + 0x4 * reg_num;
+
+  /* Get the base address */
+  err =
+    pci_sys->read (dev->bus, dev->dev, dev->func, offset, &addr,
+		   sizeof (addr));
   if (err)
     return err;
 
-  bar = 0x10;
-  for (i = 0; i < pci_device_x86_get_num_regions (hdrtype); i++, bar += 4)
+  /* Test write all ones to the register, then restore it. */
+  reg = 0xffffffff;
+  err = pci_sys->write (dev->bus, dev->dev, dev->func, offset, &reg,
+			sizeof (reg));
+  if (err)
+    return err;
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, offset, &testval,
+		       sizeof (testval));
+  if (err)
+    return err;
+  err = pci_sys->write (dev->bus, dev->dev, dev->func, offset, &addr,
+			sizeof (addr));
+  if (err)
+    return err;
+
+  dev->regions[reg_num].is_IO = addr & 0x01;
+  dev->regions[reg_num].is_64 = addr & 0x04;
+  dev->regions[reg_num].is_prefetchable = addr & 0x08;
+
+  /* Set the size */
+  dev->regions[reg_num].size = get_test_val_size (testval);
+
+  /* Set the base address value */
+  dev->regions[reg_num].base_addr = get_map_base (addr);
+
+  if (dev->regions[reg_num].is_IO)
     {
-      uint32_t addr, testval;
-
-      /* Get the base address */
+      /* Enable the I/O Space bit */
       err =
-	pci_sys->read (dev->bus, dev->dev, dev->func, bar, &addr,
-		       sizeof (addr));
+	pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+		       sizeof (reg));
       if (err)
-	continue;
+	return err;
 
-      /* Test write all ones to the register, then restore it. */
-      reg = 0xffffffff;
-      err = pci_sys->write (dev->bus, dev->dev, dev->func, bar, &reg,
-			    sizeof (reg));
-      if (err)
-	continue;
-      err = pci_sys->read (dev->bus, dev->dev, dev->func, bar, &testval,
-			   sizeof (testval));
-      if (err)
-	continue;
-      err = pci_sys->write (dev->bus, dev->dev, dev->func, bar, &addr,
-			    sizeof (addr));
-      if (err)
-	continue;
-
-      if (addr & 0x01)
-	dev->regions[i].is_IO = 1;
-      if (addr & 0x04)
-	dev->regions[i].is_64 = 1;
-      if (addr & 0x08)
-	dev->regions[i].is_prefetchable = 1;
-
-      /* Set the size */
-      dev->regions[i].size = get_test_val_size (testval);
-
-      /* Set the base address value */
-      dev->regions[i].base_addr = get_map_base (addr);
-
-      if (dev->regions[i].is_IO)
+      if (!(reg & 0x1))
 	{
-	  /* Enable the I/O Space bit */
+	  reg |= 0x1;
+
 	  err =
-	    pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-			   sizeof (reg));
+	    pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
+			    &reg, sizeof (reg));
 	  if (err)
 	    return err;
-
-	  if (!(reg & 0x1))
-	    {
-	      reg |= 0x1;
-
-	      err =
-		pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
-				&reg, sizeof (reg));
-	      if (err)
-		return err;
-	    }
 	}
-      else
+
+      /* Clear the map pointer */
+      dev->regions[reg_num].memory = 0;
+    }
+  else if (dev->regions[reg_num].size > 0)
+    {
+      /* Enable the Memory Space bit */
+      err =
+	pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+		       sizeof (reg));
+      if (err)
+	return err;
+
+      if (!(reg & 0x2))
 	{
-	  /* Enable the Memory Space bit */
+	  reg |= 0x2;
+
 	  err =
-	    pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-			   sizeof (reg));
+	    pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
+			    &reg, sizeof (reg));
 	  if (err)
 	    return err;
+	}
 
-	  if (!(reg & 0x2))
-	    {
-	      reg |= 0x2;
+      /* Map the region in our space */
+      memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
+      if (memfd == -1)
+	return errno;
 
-	      err =
-		pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND,
-				&reg, sizeof (reg));
-	      if (err)
-		return err;
-	    }
-
-	  /* Map the region in our space */
-	  memfd = open ("/dev/mem", O_RDONLY | O_CLOEXEC);
-	  if (memfd == -1)
-	    return errno;
-
-	  dev->regions[i].memory =
-	    mmap (NULL, dev->regions[i].size, PROT_READ | PROT_WRITE, 0,
-		  memfd, dev->regions[i].base_addr);
-	  if (dev->regions[i].memory == MAP_FAILED)
-	    {
-	      dev->regions[i].memory = 0;
-	      close (memfd);
-	      continue;
-	    }
-
+      dev->regions[reg_num].memory =
+	mmap (NULL, dev->regions[reg_num].size, PROT_READ | PROT_WRITE, 0,
+	      memfd, dev->regions[reg_num].base_addr);
+      if (dev->regions[reg_num].memory == MAP_FAILED)
+	{
+	  dev->regions[reg_num].memory = 0;
 	  close (memfd);
-
+	  return errno;
 	}
 
-      if (dev->regions[i].is_64)
-	{
-	  /*
-	   * This is a 32bit arch. Only a valid 32bit address may be written here
-	   * and the reamining 4 bytes of the address can only be 0. So there's no
-	   * need to read them.
-	   */
-	  bar += 4;
-	  i++;
-	}
-
+      close (memfd);
     }
 
   return 0;
@@ -439,88 +417,75 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   uint8_t reg_8, xrombar_addr;
   uint32_t reg, reg_back;
   pciaddr_t rom_size;
-  pciaddr_t rom_addr;
+  pciaddr_t rom_base;
   void *rom_mapped;
   int memfd;
 
-  /*
-   * If it's a VGA device, use the 0xc0000 mapping.
-   */
-  if ((dev->device_class & 0x00ffff00) == (PCI_CLASS_DISPLAY_VGA << 8))
+  /* First we need to know which type of header is this */
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &reg_8,
+		       sizeof (reg_8));
+  if (err)
+    return err;
+
+  /* Get the XROMBAR register address */
+  switch (reg_8 & 0x3)
     {
-      rom_size = 64 * 1024;
-      rom_addr = 0xc0000;
+    case PCI_HDRTYPE_DEVICE:
+      xrombar_addr = PCI_XROMBAR_ADDR_00;
+      break;
+    case PCI_HDRTYPE_BRIDGE:
+      xrombar_addr = PCI_XROMBAR_ADDR_01;
+      break;
+    default:
+      return -1;
     }
-  else
+
+  /* Get size and physical address */
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+		       sizeof (reg));
+  if (err)
+    return err;
+
+  reg_back = reg;
+  reg = 0xFFFFF800;		/* Base address: first 21 bytes */
+  err = pci_sys->write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+			sizeof (reg));
+  if (err)
+    return err;
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
+		       sizeof (reg));
+  if (err)
+    return err;
+
+  rom_size = (~reg + 1);
+  rom_base = reg_back & reg;
+
+  if (rom_size == 0)
+    return 0;
+
+  /* Enable the address decoder and write the physical address back */
+  reg_back |= 0x1;
+  err = pci_sys->write
+    (dev->bus, dev->dev, dev->func, xrombar_addr, &reg_back,
+     sizeof (reg_back));
+  if (err)
+    return err;
+
+  /* Enable the Memory Space bit */
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+		       sizeof (reg));
+  if (err)
+    return err;
+
+  if (!(reg & 0x2))
     {
+      reg |= 0x2;
 
-      /* Else, read the XROMBAR */
-      /* First we need to know which type of header is this */
-      err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &reg_8,
-			   sizeof (reg_8));
+      err =
+	pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
+			sizeof (reg));
       if (err)
 	return err;
-
-      /* Get the XROMBAR register address */
-      switch (reg_8 & 0x3)
-	{
-	case PCI_HDRTYPE_DEVICE:
-	  xrombar_addr = PCI_XROMBAR_ADDR_00;
-	  break;
-	case PCI_HDRTYPE_BRIDGE:
-	  xrombar_addr = PCI_XROMBAR_ADDR_01;
-	  break;
-	default:
-	  return -1;
-	}
-
-      /* Get size and physical address */
-      err = pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-			   sizeof (reg));
-      if (err)
-	return err;
-
-      reg_back = reg;
-      reg = 0xFFFFF800;		/* Base address: first 21 bytes */
-      err = pci_sys->write (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-			    sizeof (reg));
-      if (err)
-	return err;
-      err = pci_sys->read (dev->bus, dev->dev, dev->func, xrombar_addr, &reg,
-			   sizeof (reg));
-      if (err)
-	return err;
-
-      rom_size = (~reg + 1);
-      rom_addr = reg_back & reg;
-
-      if (rom_size == 0)
-	return 0;
-
-      /* Enable the address decoder and write the physical address back */
-      reg_back |= 0x1;
-      err = pci_sys->write
-	(dev->bus, dev->dev, dev->func, xrombar_addr, &reg_back,
-	 sizeof (reg_back));
-      if (err)
-	return err;
-
-      /* Enable the Memory Space bit */
-      err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-			   sizeof (reg));
-      if (err)
-	return err;
-
-      if (!(reg & 0x2))
-	{
-	  reg |= 0x2;
-
-	  err =
-	    pci_sys->write (dev->bus, dev->dev, dev->func, PCI_COMMAND, &reg,
-			    sizeof (reg));
-	  if (err)
-	    return err;
-	}
     }
 
   /* Map the ROM in our space */
@@ -528,7 +493,7 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   if (memfd == -1)
     return errno;
 
-  rom_mapped = mmap (NULL, rom_size, PROT_READ, 0, memfd, rom_addr);
+  rom_mapped = mmap (NULL, rom_size, PROT_READ, 0, memfd, rom_base);
   if (rom_mapped == MAP_FAILED)
     {
       close (memfd);
@@ -538,8 +503,112 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   close (memfd);
 
   dev->rom_size = rom_size;
-  dev->rom_addr = rom_addr;
+  dev->rom_base = rom_base;
   dev->rom_memory = rom_mapped;
+
+  return 0;
+}
+
+static error_t
+pci_device_x86_probe (struct pci_device *dev)
+{
+  error_t err;
+  uint8_t hdrtype;
+  int i;
+
+  /* Probe BARs */
+  err = pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &hdrtype,
+		       sizeof (hdrtype));
+  if (err)
+    return err;
+
+  for (i = 0; i < pci_device_x86_get_num_regions (hdrtype); i++)
+    {
+      err = pci_device_x86_region_probe (dev, i);
+      if (err)
+	return err;
+
+      if (dev->regions[i].is_64)
+	/*
+	 * This is a 32bit arch. Only a valid 32bit address may be written here
+	 * and the reamining 4 bytes of the address can only be 0. So there's no
+	 * need to read them.
+	 */
+	i++;
+    }
+
+  /* Probe ROM */
+  err = pci_device_x86_rom_probe (dev);
+  if (err)
+    return err;
+
+  return 0;
+}
+
+/*
+ * Refresh the device. Check for updates in region `reg_num'
+ * or in ROM if `rom' = true. `reg_num' < 0 means no region check.
+ */
+static error_t
+pci_device_x86_refresh (struct pci_device *dev, int reg_num, int rom)
+{
+  error_t err;
+  uint8_t offset, hdrtype;
+  uint32_t addr;
+
+  if (reg_num >= 0 && dev->regions[reg_num].size > 0)
+    {
+      /* Read the BAR */
+      offset = PCI_BAR_ADDR_0 + 0x4 * reg_num;
+      err =
+	pci_sys->read (dev->bus, dev->dev, dev->func, offset, &addr,
+		       sizeof (addr));
+      if (err)
+	return err;
+
+      /* Check whether the region is outdated, if so, the refresh it */
+      if (dev->regions[reg_num].base_addr != get_map_base (addr))
+	{
+	  err = pci_device_x86_region_probe (dev, reg_num);
+	  if (err)
+	    return err;
+	}
+    }
+
+  if (rom && dev->rom_size > 0)
+    {
+      /* Read the BAR */
+      err =
+	pci_sys->read (dev->bus, dev->dev, dev->func, PCI_HDRTYPE, &hdrtype,
+		       sizeof (hdrtype));
+      if (err)
+	return err;
+
+      switch (hdrtype & 0x3)
+	{
+	case PCI_HDRTYPE_DEVICE:
+	  offset = PCI_XROMBAR_ADDR_00;
+	  break;
+	case PCI_HDRTYPE_BRIDGE:
+	  offset = PCI_XROMBAR_ADDR_01;
+	  break;
+	default:
+	  return -1;
+	}
+
+      err = pci_sys->read (dev->bus, dev->dev, dev->func, offset, &addr,
+			   sizeof (addr));
+      if (err)
+	return err;
+
+      /* Check whether the ROM is outdated, if so, the refresh it */
+      if (dev->rom_base != (addr & 0xFFFFF800))
+	{
+	  err = pci_device_x86_rom_probe (dev);
+	  if (err)
+	    return err;
+	}
+    }
 
   return 0;
 }
@@ -631,6 +700,7 @@ pci_system_x86_create (void)
       free (pci_sys);
       return err;
     }
+  pci_sys->device_refresh = pci_device_x86_refresh;
 
   ndevs = 0;
   for (bus = 0; bus < 256; bus++)
@@ -685,11 +755,7 @@ pci_system_x86_create (void)
 		continue;
 	      device->device_class = reg >> 8;
 
-	      err = pci_device_x86_rom_probe (device);
-	      if (err)
-		return err;
-
-	      err = pci_device_x86_regions_probe (device);
+	      err = pci_device_x86_probe (device);
 	      if (err)
 		return err;
 

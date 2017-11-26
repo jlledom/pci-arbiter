@@ -181,7 +181,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	if (device->regions[j].size > 0)
 	  nentries++;		/* + memory region */
 
-      if (device->rom_addr)
+      if (device->rom_size)
 	nentries++;		/* + rom */
     }
 
@@ -290,7 +290,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	}
 
       /* Create rom entry */
-      if (device->rom_addr)
+      if (device->rom_size)
 	{
 	  /* Make rom is read only */
 	  e_stat.st_mode &= ~(S_IWUSR | S_IWGRP);

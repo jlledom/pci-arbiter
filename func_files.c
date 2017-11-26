@@ -101,8 +101,15 @@ error_t
 read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
 	       void *data)
 {
+  error_t err;
+
   /* This should never happen */
   assert_backtrace (dev != 0);
+
+  /* Refresh the ROM */
+  err = pci_sys->device_refresh (dev, -1, 1);
+  if (err)
+    return err;
 
   /* Don't exceed the ROM size */
   if (offset > dev->rom_size)
@@ -164,9 +171,10 @@ region_block_ioport_op (uint16_t port, off_t offset, size_t *len,
 }
 
 error_t
-read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
-		  void *data)
+io_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
+		void *data, int read)
 {
+  error_t err;
   size_t reg_num;
   struct pci_mem_region *region;
 
@@ -177,6 +185,11 @@ read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
   reg_num = strtol (&e->name[strlen (e->name) - 1], 0, 16);
   region = &e->device->regions[reg_num];
 
+  /* Refresh the region */
+  err = pci_sys->device_refresh (e->device, reg_num, -1);
+  if (err)
+    return err;
+
   /* Don't exceed the ROM size */
   if (offset > region->size)
     return EINVAL;
@@ -184,35 +197,9 @@ read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
     *len = region->size - offset;
 
   if (region->is_IO)
-    region_block_ioport_op (region->base_addr, offset, len, data, 1);
-  else
+    region_block_ioport_op (region->base_addr, offset, len, data, read);
+  else if (read)
     memcpy (data, region->memory + offset, *len);
-
-  return 0;
-}
-
-error_t
-write_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
-		   void *data)
-{
-  size_t reg_num;
-  struct pci_mem_region *region;
-
-  /* This should never happen */
-  assert_backtrace (e->device != 0);
-
-  /* Get the region */
-  reg_num = strtol (&e->name[strlen (e->name) - 1], 0, 16);
-  region = &e->device->regions[reg_num];
-
-  /* Don't exceed the ROM size */
-  if (offset > region->size)
-    return EINVAL;
-  if ((offset + *len) > region->size)
-    *len = region->size - offset;
-
-  if (region->is_IO)
-    region_block_ioport_op (region->base_addr, offset, len, data, 0);
   else
     memcpy (region->memory + offset, data, *len);
 

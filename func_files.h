@@ -40,10 +40,6 @@ error_t io_config_file (struct pci_device *dev, off_t offset, size_t *len,
 error_t read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
 		       void *data);
 
-error_t read_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
-			  void *data);
-
-error_t write_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
-			   void *data);
-
+error_t io_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
+			void *data, int read);
 #endif /* FUNC_FILES_H */

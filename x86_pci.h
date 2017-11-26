@@ -41,6 +41,7 @@
 #define PCI_CLASS_DISPLAY_VGA		0x0300
 #define PCI_CLASS_BRIDGE_HOST		0x0600
 
+#define PCI_BAR_ADDR_0        0x10
 #define PCI_XROMBAR_ADDR_00   0x30
 #define PCI_XROMBAR_ADDR_01   0x38
 

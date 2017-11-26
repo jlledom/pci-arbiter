@@ -93,7 +93,7 @@ get_dirents (struct pcifs_dirent *dir,
       int entry_type;
 
       e = dir->dir->entries[i + first_entry];
-      name_len = strlen (e->name) +1;
+      name_len = strlen (e->name) + 1;
       sz = DIRENT_LEN (name_len);
       entry_type = IFTODT (e->stat.st_mode);
 
@@ -486,7 +486,7 @@ netfs_attempt_read (struct iouser * cred, struct node * node,
   else if (!strncmp
 	   (node->nn->ln->name, FILE_REGION_NAME, strlen (FILE_REGION_NAME)))
     {
-      err = read_region_file (node->nn->ln, offset, len, data);
+      err = io_region_file (node->nn->ln, offset, len, data, 1);
       if (!err)
 	/* Update atime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_ATIME);
@@ -512,13 +512,15 @@ netfs_attempt_write (struct iouser * cred, struct node * node,
 	io_config_file (node->nn->ln->device, offset, len, data,
 			pci_sys->write);
       if (!err)
-	/* Update mtime and ctime */
-	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
+	{
+	  /* Update mtime and ctime */
+	  UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
+	}
     }
   else if (!strncmp
 	   (node->nn->ln->name, FILE_REGION_NAME, strlen (FILE_REGION_NAME)))
     {
-      err = write_region_file (node->nn->ln, offset, len, data);
+      err = io_region_file (node->nn->ln, offset, len, data, 0);
       if (!err)
 	/* Update atime */
 	UPDATE_TIMES (node->nn->ln, TOUCH_MTIME | TOUCH_CTIME);
