@@ -201,11 +201,22 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       fs->params.num_perms = h->num_permsets;
 
       if (fs->root)
-	/*
-	 * FS is already initialized, that means we've been called by fsysopts.
-	 * Update permissions.
-	 */
-	err = fs_set_permissions (fs);
+	{
+	  /*
+	   * FS is already initialized, that means we've been called by fsysopts.
+	   * Update permissions.
+	   */
+
+	  /* Don't accept new RPCs during this process */
+	  err = ports_inhibit_all_rpcs ();
+	  if (err)
+	    return err;
+
+	  err = fs_set_permissions (fs);
+
+	  /* Accept RPCs again */
+	  ports_resume_all_rpcs ();
+	}
 
       /* Free the hook */
       free (h);
