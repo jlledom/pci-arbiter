@@ -745,7 +745,7 @@ pci_system_x86_create (void)
 	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
 		  PCI_VENDOR (reg) == 0)
 		continue;
-	      device->domain = 0;
+	      device->domain = 0;	/* PCI express still not supported */
 	      device->bus = bus;
 	      device->dev = dev;
 	      device->func = func;

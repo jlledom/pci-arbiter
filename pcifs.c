@@ -189,32 +189,41 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   if (!list)
     return ENOMEM;
 
-  /* Add an entry for domain = 0. We still don't support PCI express */
   e = list + 1;
-  c_domain = 0;
   e_stat = list->stat;
   e_stat.st_mode &= ~S_IROOT;	/* Remove the root mode */
-  memset (entry_name, 0, NAME_SIZE);
-  snprintf (entry_name, NAME_SIZE, "%04x", c_domain);
-  err = create_dir_entry (c_domain, -1, -1, -1, -1, entry_name, list,
-			  e_stat, 0, 0, e);
-  if (err)
-    return err;
-
-  c_bus = c_dev = -1;
+  c_domain = c_bus = c_dev = -1;
   bus_parent = dev_parent = func_parent = 0;
-  domain_parent = e++;
   for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
        i++, device++)
     {
+      if (device->domain != c_domain)
+	{
+	  /* We've found a new domain. Add an entry for it */
+	  memset (entry_name, 0, NAME_SIZE);
+	  snprintf (entry_name, NAME_SIZE, "%04x", device->domain);
+	  err =
+	    create_dir_entry (device->domain, -1, -1, -1, -1, entry_name,
+			      list, e_stat, 0, 0, e);
+	  if (err)
+	    return err;
+
+	  /* Switch to bus level */
+	  domain_parent = e++;
+	  c_domain = device->domain;
+	  c_bus = -1;
+	  c_dev = -1;
+	}
+
       if (device->bus != c_bus)
 	{
 	  /* We've found a new bus. Add an entry for it */
 	  memset (entry_name, 0, NAME_SIZE);
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->bus);
 	  err =
-	    create_dir_entry (c_domain, device->bus, -1, -1, -1, entry_name,
-			      domain_parent, domain_parent->stat, 0, 0, e);
+	    create_dir_entry (device->domain, device->bus, -1, -1, -1,
+			      entry_name, domain_parent, domain_parent->stat,
+			      0, 0, e);
 	  if (err)
 	    return err;
 
@@ -230,9 +239,9 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  memset (entry_name, 0, NAME_SIZE);
 	  snprintf (entry_name, NAME_SIZE, "%02x", device->dev);
 	  err =
-	    create_dir_entry (c_domain, device->bus, device->dev, -1, -1,
-			      entry_name, bus_parent, bus_parent->stat, 0, 0,
-			      e);
+	    create_dir_entry (device->domain, device->bus, device->dev, -1,
+			      -1, entry_name, bus_parent, bus_parent->stat, 0,
+			      0, e);
 	  if (err)
 	    return err;
 
@@ -249,9 +258,9 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       memset (entry_name, 0, NAME_SIZE);
       snprintf (entry_name, NAME_SIZE, "%01u", device->func);
       err =
-	create_dir_entry (c_domain, device->bus, device->dev, device->func,
-			  device->device_class, entry_name, dev_parent,
-			  e_stat, 0, device, e);
+	create_dir_entry (device->domain, device->bus, device->dev,
+			  device->func, device->device_class, entry_name,
+			  dev_parent, e_stat, 0, device, e);
       if (err)
 	return err;
 
@@ -266,9 +275,9 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       /* Create config entry */
       strncpy (entry_name, FILE_CONFIG_NAME, NAME_SIZE);
       err =
-	create_dir_entry (c_domain, device->bus, device->dev, device->func,
-			  device->device_class, entry_name, func_parent,
-			  e_stat, 0, device, e++);
+	create_dir_entry (device->domain, device->bus, device->dev,
+			  device->func, device->device_class, entry_name,
+			  func_parent, e_stat, 0, device, e++);
       if (err)
 	return err;
 
@@ -280,7 +289,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	      e_stat.st_size = device->regions[j].size;
 	      snprintf (entry_name, NAME_SIZE, "%s%01u", FILE_REGION_NAME, j);
 	      err =
-		create_dir_entry (c_domain, device->bus, device->dev,
+		create_dir_entry (device->domain, device->bus, device->dev,
 				  device->func, device->device_class,
 				  entry_name, func_parent, e_stat, 0, device,
 				  e++);
@@ -297,7 +306,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
 	  e_stat.st_size = device->rom_size;
 	  strncpy (entry_name, FILE_ROM_NAME, NAME_SIZE);
 	  err =
-	    create_dir_entry (c_domain, device->bus, device->dev,
+	    create_dir_entry (device->domain, device->bus, device->dev,
 			      device->func, device->device_class, entry_name,
 			      func_parent, e_stat, 0, device, e++);
 	  if (err)
