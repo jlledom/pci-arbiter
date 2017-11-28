@@ -40,8 +40,7 @@ struct dev_region
 };
 
 static error_t
-check_permissions (struct protid *master, int bus, int dev, int func,
-		   int flags)
+check_permissions (struct protid *master, int flags)
 {
   error_t err = 0;
   struct node *node;
@@ -59,12 +58,6 @@ check_permissions (struct protid *master, int bus, int dev, int func,
   if (e->domain != 0		/* Only domain 0 can be accessed by I/O ports */
       || e->bus < 0 || e->dev < 0 || e->func < 0)
     err = EINVAL;
-  else if (bus != e->bus)
-    err = EPERM;
-  else if (dev != e->dev)
-    err = EPERM;
-  else if (func != e->func)
-    err = EPERM;
 
   return err;
 }
@@ -96,9 +89,8 @@ calculate_ndevs (struct iouser *user)
  * `*datalen' is updated.
  */
 error_t
-S_pci_conf_read (struct protid *master, int bus, int dev, int func,
-		 int reg, char **data, size_t *datalen,
-		 mach_msg_type_number_t amount)
+S_pci_conf_read (struct protid * master, int reg, char **data,
+		 size_t * datalen, mach_msg_type_number_t amount)
 {
   error_t err;
   pthread_rwlock_t *lock;
@@ -114,7 +106,7 @@ S_pci_conf_read (struct protid *master, int bus, int dev, int func,
 
   lock = &fs->pci_conf_lock;
 
-  err = check_permissions (master, bus, dev, func, O_READ);
+  err = check_permissions (master, O_READ);
   if (err)
     return err;
 
@@ -130,7 +122,7 @@ S_pci_conf_read (struct protid *master, int bus, int dev, int func,
    * libnetfs which is multi-threaded. A lock is needed for arbitration.
    */
   pthread_rwlock_rdlock (lock);
-  err = pci_sys->read (bus, dev, func, reg, *data, amount);
+  err = pci_sys->read (e->bus, e->dev, e->func, reg, *data, amount);
   pthread_rwlock_unlock (lock);
 
   if (!err)
@@ -145,9 +137,8 @@ S_pci_conf_read (struct protid *master, int bus, int dev, int func,
 
 /* Write `datalen' bytes from `data'. `amount' is updated. */
 error_t
-S_pci_conf_write (struct protid *master, int bus, int dev, int func,
-		  int reg, char *data, size_t datalen,
-		  mach_msg_type_number_t *amount)
+S_pci_conf_write (struct protid * master, int reg, char *data, size_t datalen,
+		  mach_msg_type_number_t * amount)
 {
   error_t err;
   pthread_rwlock_t *lock;
@@ -163,12 +154,12 @@ S_pci_conf_write (struct protid *master, int bus, int dev, int func,
 
   lock = &fs->pci_conf_lock;
 
-  err = check_permissions (master, bus, dev, func, O_WRITE);
+  err = check_permissions (master, O_WRITE);
   if (err)
     return err;
 
   pthread_rwlock_wrlock (lock);
-  err = pci_sys->write (bus, dev, func, reg, data, datalen);
+  err = pci_sys->write (e->bus, e->dev, e->func, reg, data, datalen);
   pthread_rwlock_unlock (lock);
 
   if (!err)
@@ -183,7 +174,7 @@ S_pci_conf_write (struct protid *master, int bus, int dev, int func,
 
 /* Write in `amount' the number of devices allowed for the user. */
 error_t
-S_pci_get_ndevs (struct protid *master, mach_msg_type_number_t *amount)
+S_pci_get_ndevs (struct protid * master, mach_msg_type_number_t * amount)
 {
   /* This RPC may only be addressed to the root node */
   if (master->po->np != fs->root)
@@ -199,8 +190,7 @@ S_pci_get_ndevs (struct protid *master, mach_msg_type_number_t *amount)
  * regions in the given device.
  */
 error_t
-S_pci_get_dev_regions (struct protid *master, int bus, int dev, int func,
-		       char **data, size_t *datalen)
+S_pci_get_dev_regions (struct protid * master, char **data, size_t * datalen)
 {
   error_t err;
   struct pcifs_dirent *e;
@@ -216,7 +206,7 @@ S_pci_get_dev_regions (struct protid *master, int bus, int dev, int func,
     /* This operation may only be addressed to the config file */
     return EINVAL;
 
-  err = check_permissions (master, bus, dev, func, O_READ);
+  err = check_permissions (master, O_READ);
   if (err)
     return err;
 
