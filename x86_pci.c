@@ -358,9 +358,12 @@ pci_device_x86_region_probe (struct pci_device *dev, int reg_num)
   if (err)
     return err;
 
-  dev->regions[reg_num].is_IO = addr & 0x01;
-  dev->regions[reg_num].is_64 = addr & 0x04;
-  dev->regions[reg_num].is_prefetchable = addr & 0x08;
+  if (addr & 0x01)
+    dev->regions[reg_num].is_IO = 1;
+  if (addr & 0x04)
+    dev->regions[reg_num].is_64 = 1;
+  if (addr & 0x08)
+    dev->regions[reg_num].is_prefetchable = 1;
 
   /* Set the size */
   dev->regions[reg_num].size = get_test_val_size (testval);
