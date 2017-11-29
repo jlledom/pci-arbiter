@@ -368,6 +368,17 @@ pci_device_x86_region_probe (struct pci_device *dev, int reg_num)
   /* Set the base address value */
   dev->regions[reg_num].base_addr = get_map_base (addr);
 
+  if (dev->regions[reg_num].is_64)
+    {
+      err =
+	pci_sys->read (dev->bus, dev->dev, dev->func, offset + 4, &addr,
+		       sizeof (addr));
+      if (err)
+	return err;
+
+      dev->regions[reg_num].base_addr |= ((uint64_t) addr << 32);
+    }
+
   if (dev->regions[reg_num].is_IO)
     {
       /* Enable the I/O Space bit */
@@ -551,11 +562,7 @@ pci_device_x86_probe (struct pci_device *dev)
 	return err;
 
       if (dev->regions[i].is_64)
-	/*
-	 * This is a 32bit arch. Only a valid 32bit address may be written here
-	 * and the reamining 4 bytes of the address can only be 0. So there's no
-	 * need to read them.
-	 */
+	/* Move the pointer one bar ahead */
 	i++;
     }
 
