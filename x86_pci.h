@@ -29,28 +29,6 @@
 #ifndef X86_PCI_H
 #define X86_PCI_H
 
-#define PCI_VENDOR(reg)		((reg) & 0xFFFF)
-#define PCI_VENDOR_INVALID	0xFFFF
-
-#define PCI_VENDOR_ID		0x00
-#define PCI_VENDOR_ID_COMPAQ		0x0e11
-#define PCI_VENDOR_ID_INTEL		0x8086
-
-#define PCI_CLASS		0x08
-#define PCI_CLASS_DEVICE	0x0a
-#define PCI_CLASS_DISPLAY_VGA		0x0300
-#define PCI_CLASS_BRIDGE_HOST		0x0600
-
-#define PCI_BAR_ADDR_0        0x10
-#define PCI_XROMBAR_ADDR_00   0x30
-#define PCI_XROMBAR_ADDR_01   0x38
-
-#define PCI_HDRTYPE	0x0E
-#define PCI_HDRTYPE_DEVICE	0x00
-#define PCI_HDRTYPE_BRIDGE	0x01
-
-#define PCI_COMMAND   0x04
-
 int pci_system_x86_create (void);
 
 #endif /* X86_PCI_H */
