@@ -61,8 +61,10 @@
 #define PCI_HDRTYPE	0x0E
 #define PCI_HDRTYPE_DEVICE	0x00
 #define PCI_HDRTYPE_BRIDGE	0x01
+#define PCI_HDRTYPE_CARDBUS	0x02
 
-#define PCI_COMMAND   0x04
+#define PCI_COMMAND	0x04
+#define PCI_SECONDARY_BUS	0x19
 
 static error_t
 x86_enable_io (void)
@@ -693,26 +695,137 @@ pci_probe (struct pci_system *pci_sys)
 }
 
 static error_t
-pci_nfuncs (struct pci_system *pci_sys, int bus, int dev)
+pci_nfuncs (struct pci_system *pci_sys, int bus, int dev, uint8_t * nfuncs)
 {
-  uint8_t hdr;
+  uint8_t hdrtype;
   error_t err;
 
-  err = pci_sys->read (bus, dev, 0, PCI_HDRTYPE, &hdr, sizeof (hdr));
-
+  err = pci_sys->read (bus, dev, 0, PCI_HDRTYPE, &hdrtype, sizeof (hdrtype));
   if (err)
     return err;
 
-  return hdr & 0x80 ? 8 : 1;
+  *nfuncs = hdrtype & 0x80 ? 8 : 1;
+
+  return 0;
+}
+
+static error_t
+pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
+{
+  error_t err;
+  uint8_t dev, func, nfuncs, hdrtype, secbus;
+  uint32_t reg;
+  struct pci_device *d, *devices;
+
+  for (dev = 0; dev < 32; dev++)
+    {
+      err = pci_nfuncs (pci_sys, bus, dev, &nfuncs);
+      if (err)
+	return err;
+
+      for (func = 0; func < nfuncs; func++)
+	{
+	  err =
+	    pci_sys->read (bus, dev, func, PCI_VENDOR_ID, &reg, sizeof (reg));
+	  if (err)
+	    return err;
+
+	  if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID || PCI_VENDOR (reg) == 0)
+	    continue;
+
+	  err = pci_sys->read (bus, dev, func, PCI_CLASS, &reg, sizeof (reg));
+	  if (err)
+	    return err;
+
+	  err =
+	    pci_sys->read (bus, dev, func, PCI_HDRTYPE, &hdrtype,
+			   sizeof (hdrtype));
+	  if (err)
+	    return err;
+
+	  devices =
+	    realloc (pci_sys->devices,
+		     (pci_sys->num_devices + 1) * sizeof (struct pci_device));
+	  if (!devices)
+	    return ENOMEM;
+
+	  d = devices + pci_sys->num_devices;
+
+	  d->domain = 0;	/* PCI express still not supported */
+	  d->bus = bus;
+	  d->dev = dev;
+	  d->func = func;
+
+	  d->device_class = reg >> 8;
+
+	  err = pci_device_x86_probe (d);
+	  if (err)
+	    return err;
+
+	  pci_sys->devices = devices;
+	  pci_sys->num_devices++;
+
+	  switch (hdrtype & 0x3)
+	    {
+	    case PCI_HDRTYPE_DEVICE:
+	      break;
+	    case PCI_HDRTYPE_BRIDGE:
+	    case PCI_HDRTYPE_CARDBUS:
+	      {
+		err =
+		  pci_sys->read (bus, dev, func, PCI_SECONDARY_BUS, &secbus,
+				 sizeof (secbus));
+		if (err)
+		  return err;
+
+		err = pci_system_x86_scan_bus (pci_sys, secbus);
+		if (err)
+		  return err;
+
+		break;
+	      }
+	    default:
+	      /* Unknown header, do nothing */
+	      break;
+	    }
+	}
+    }
+
+  return 0;
+}
+
+static error_t
+pci_system_x86_find_host_bridges (struct pci_system *pci_sys)
+{
+  error_t err;
+  uint8_t nfuncs;
+  uint32_t reg;
+  int i;
+
+  err = pci_nfuncs (pci_sys, 0, 0, &nfuncs);
+  if (err)
+    return err;
+
+  for (i = 0; i < nfuncs; i++)
+    {
+      err = pci_sys->read (0, 0, i, PCI_VENDOR_ID, &reg, sizeof (reg));
+      if (err)
+	return err;
+
+      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID || PCI_VENDOR (reg) == 0)
+	continue;
+
+      /* Host bridge found, scan its bus */
+      pci_system_x86_scan_bus (pci_sys, i);
+    }
+
+  return 0;
 }
 
 error_t
 pci_system_x86_create (void)
 {
-  struct pci_device *device;
   error_t err;
-  int bus, dev, ndevs, func, nfuncs;
-  uint32_t reg;
 
   err = x86_enable_io ();
   if (err)
@@ -734,66 +847,15 @@ pci_system_x86_create (void)
     }
   pci_sys->device_refresh = pci_device_x86_refresh;
 
-  ndevs = 0;
-  for (bus = 0; bus < 256; bus++)
-    {
-      for (dev = 0; dev < 32; dev++)
-	{
-	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
-	  for (func = 0; func < nfuncs; func++)
-	    {
-	      if (pci_sys->read (bus, dev, func, PCI_VENDOR_ID, &reg,
-				 sizeof (reg)) != 0)
-		continue;
-	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
-		  PCI_VENDOR (reg) == 0)
-		continue;
-	      ndevs++;
-	    }
-	}
-    }
-
-  pci_sys->num_devices = ndevs;
-  pci_sys->devices = calloc (ndevs, sizeof (struct pci_device));
-  if (pci_sys->devices == NULL)
+  /* Recursive scan */
+  pci_sys->num_devices = 0;
+  err = pci_system_x86_find_host_bridges (pci_sys);
+  if (err)
     {
       x86_disable_io ();
       free (pci_sys);
       pci_sys = NULL;
-      return ENOMEM;
-    }
-
-  device = pci_sys->devices;
-  for (bus = 0; bus < 256; bus++)
-    {
-      for (dev = 0; dev < 32; dev++)
-	{
-	  nfuncs = pci_nfuncs (pci_sys, bus, dev);
-	  for (func = 0; func < nfuncs; func++)
-	    {
-	      if (pci_sys->read (bus, dev, func, PCI_VENDOR_ID, &reg,
-				 sizeof (reg)) != 0)
-		continue;
-	      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID ||
-		  PCI_VENDOR (reg) == 0)
-		continue;
-	      device->domain = 0;	/* PCI express still not supported */
-	      device->bus = bus;
-	      device->dev = dev;
-	      device->func = func;
-
-	      if (pci_sys->read
-		  (bus, dev, func, PCI_CLASS, &reg, sizeof (reg)) != 0)
-		continue;
-	      device->device_class = reg >> 8;
-
-	      err = pci_device_x86_probe (device);
-	      if (err)
-		return err;
-
-	      device++;
-	    }
-	}
+      return err;
     }
 
   return 0;
