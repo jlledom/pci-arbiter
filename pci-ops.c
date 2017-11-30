@@ -29,16 +29,6 @@
 #include <pcifs.h>
 #include <func_files.h>
 
-/* Memory region info, to be sent through RPCs */
-struct dev_region
-{
-  pciaddr_t base_addr;
-  pciaddr_t size;
-  unsigned is_IO:1;
-  unsigned is_prefetchable:1;
-  unsigned is_64:1;
-};
-
 static error_t
 check_permissions (struct protid *master, int flags)
 {
@@ -194,7 +184,7 @@ S_pci_get_dev_regions (struct protid * master, char **data, size_t * datalen)
 {
   error_t err;
   struct pcifs_dirent *e;
-  struct dev_region regions[6], *r;
+  struct pci_bar regions[6], *r;
   size_t size;
   int i;
 
@@ -220,7 +210,7 @@ S_pci_get_dev_regions (struct protid * master, char **data, size_t * datalen)
     }
 
   /* Copy the regions info */
-  for (i = 0, r = (struct dev_region *) *data; i < 6; i++, r++)
+  for (i = 0, r = (struct pci_bar *) *data; i < 6; i++, r++)
     {
       r->base_addr = e->device->regions[i].base_addr;
       r->size = e->device->regions[i].size;
