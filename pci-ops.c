@@ -226,3 +226,48 @@ S_pci_get_dev_regions (struct protid * master, char **data, size_t * datalen)
 
   return 0;
 }
+
+/*
+ * Return in `data' the information about the expansion rom of the given device
+ */
+error_t
+S_pci_get_dev_rom (struct protid * master, char **data, size_t * datalen)
+{
+  error_t err;
+  struct pcifs_dirent *e;
+  struct pci_xrom_bar rom;
+  size_t size;
+
+  if (!master)
+    return EOPNOTSUPP;
+
+  e = master->po->np->nn->ln;
+  if (strncmp (e->name, FILE_CONFIG_NAME, NAME_SIZE))
+    /* This operation may only be addressed to the config file */
+    return EINVAL;
+
+  err = check_permissions (master, O_READ);
+  if (err)
+    return err;
+
+  /* Allocate memory if needed */
+  size = sizeof (rom);
+  if (size > *datalen)
+    {
+      *data = mmap (0, size, PROT_READ | PROT_WRITE, MAP_ANON, 0, 0);
+      if (*data == MAP_FAILED)
+	return ENOMEM;
+    }
+
+  /* Copy the regions info */
+  rom.base_addr = e->device->rom_base;
+  rom.size = e->device->rom_size;
+  memcpy (*data, &rom, size);
+
+  /* Update atime */
+  UPDATE_TIMES (e, TOUCH_ATIME);
+
+  *datalen = size;
+
+  return 0;
+}
