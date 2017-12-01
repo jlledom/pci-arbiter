@@ -160,7 +160,7 @@ struct pci_device
 typedef error_t (*pci_io_op_t) (unsigned bus, unsigned dev, unsigned func,
 				pciaddr_t reg, void *data, unsigned size);
 
-typedef error_t (*pci_refresh_dev_op_t) (struct pci_device *dev,
+typedef error_t (*pci_refresh_dev_op_t) (struct pci_device * dev,
 					 int num_region, int rom);
 
 /* Global PCI data */

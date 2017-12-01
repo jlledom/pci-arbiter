@@ -17,15 +17,20 @@
    along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* Per-function files implementation */
+/*
+ * Per-function files implementation.
+ *
+ * Implementation of all files repeated for each function.
+ */
 
 #include <func_files.h>
 
 #include <assert.h>
 #include <sys/io.h>
 
+/* Read or write a block of data from/to the configuration space */
 static error_t
-config_block_op (struct pci_device *dev, off_t offset, size_t *len,
+config_block_op (struct pci_device *dev, off_t offset, size_t * len,
 		 void *data, pci_io_op_t op)
 {
   error_t err;
@@ -69,8 +74,9 @@ config_block_op (struct pci_device *dev, off_t offset, size_t *len,
   return 0;
 }
 
+/* Read or write from/to the config file */
 error_t
-io_config_file (struct pci_device *dev, off_t offset, size_t *len,
+io_config_file (struct pci_device * dev, off_t offset, size_t * len,
 		void *data, pci_io_op_t op)
 {
   error_t err;
@@ -97,8 +103,9 @@ io_config_file (struct pci_device *dev, off_t offset, size_t *len,
   return err;
 }
 
+/* Read the mapped ROM */
 error_t
-read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
+read_rom_file (struct pci_device * dev, off_t offset, size_t * len,
 	       void *data)
 {
   error_t err;
@@ -122,8 +129,9 @@ read_rom_file (struct pci_device *dev, off_t offset, size_t *len,
   return 0;
 }
 
+/* Read or write from/to a memory region by using I/O ports */
 static error_t
-region_block_ioport_op (uint16_t port, off_t offset, size_t *len,
+region_block_ioport_op (uint16_t port, off_t offset, size_t * len,
 			void *data, int read)
 {
   size_t pending = *len;
@@ -170,8 +178,9 @@ region_block_ioport_op (uint16_t port, off_t offset, size_t *len,
   return 0;
 }
 
+/* Read or write from/to a region file */
 error_t
-io_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
+io_region_file (struct pcifs_dirent * e, off_t offset, size_t * len,
 		void *data, int read)
 {
   error_t err;
@@ -190,7 +199,7 @@ io_region_file (struct pcifs_dirent *e, off_t offset, size_t *len,
   if (err)
     return err;
 
-  /* Don't exceed the ROM size */
+  /* Don't exceed the region size */
   if (offset > region->size)
     return EINVAL;
   if ((offset + *len) > region->size)

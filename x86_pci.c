@@ -21,7 +21,7 @@
  */
 
 /*
- * PCI access backend.
+ * PCI backend for x86 (32 and 64 bit) architectures.
  *
  * Following code is borrowed from libpciaccess:
  * https://cgit.freedesktop.org/xorg/lib/libpciaccess/
@@ -328,6 +328,7 @@ get_test_val_size (uint32_t testval)
   return size;
 }
 
+/* Read BAR `reg_num' in `dev' and map the data if any */
 static error_t
 pci_device_x86_region_probe (struct pci_device *dev, int reg_num)
 {
@@ -448,6 +449,7 @@ pci_device_x86_region_probe (struct pci_device *dev, int reg_num)
   return 0;
 }
 
+/* Read the XROMBAR in `dev' and map the data if any */
 static error_t
 pci_device_x86_rom_probe (struct pci_device *dev)
 {
@@ -547,6 +549,7 @@ pci_device_x86_rom_probe (struct pci_device *dev)
   return 0;
 }
 
+/* Configure BARs and ROM */
 static error_t
 pci_device_x86_probe (struct pci_device *dev)
 {
@@ -567,7 +570,7 @@ pci_device_x86_probe (struct pci_device *dev)
 	return err;
 
       if (dev->regions[i].is_64)
-	/* Move the pointer one bar ahead */
+	/* Move the pointer one BAR ahead */
 	i++;
     }
 
@@ -672,6 +675,7 @@ pci_system_x86_check (struct pci_system *pci_sys)
   return ENODEV;
 }
 
+/* Find out which conf access method use */
 static error_t
 pci_probe (struct pci_system *pci_sys)
 {
@@ -709,6 +713,7 @@ pci_nfuncs (struct pci_system *pci_sys, int bus, int dev, uint8_t * nfuncs)
   return 0;
 }
 
+/* Recursively scan bus number `bus' */
 static error_t
 pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
 {
@@ -794,6 +799,7 @@ pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
   return 0;
 }
 
+/* Look for host bridges in bus 0 dev 0 and enumerate devices */
 static error_t
 pci_system_x86_find_host_bridges (struct pci_system *pci_sys)
 {
@@ -822,6 +828,7 @@ pci_system_x86_find_host_bridges (struct pci_system *pci_sys)
   return 0;
 }
 
+/* Initialize the x86 module */
 error_t
 pci_system_x86_create (void)
 {

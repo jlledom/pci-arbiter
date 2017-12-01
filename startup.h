@@ -18,12 +18,14 @@
    along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef LWIP_STARTUP_H
-#define LWIP_STARTUP_H
+#ifndef STARTUP_H
+#define STARTUP_H
+
+/* Startup and shutdown notifications management */
 
 /* Port class for startup requests */
 struct port_class *pci_shutdown_notify_class;
 
 void arrange_shutdown_notification ();
 
-#endif /* LWIP_STARTUP_H */
+#endif /* STARTUP_H */

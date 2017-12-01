@@ -132,6 +132,7 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
       return ENOMEM;
     }
 
+  /* Create the root entry */
   err =
     create_dir_entry (-1, -1, -1, -1, -1, "", 0, np->nn_stat, np, 0,
 		      fs->entries);
@@ -337,6 +338,7 @@ entry_check_perms (struct iouser * user, struct pcifs_dirent * e, int flags)
   return err;
 }
 
+/* Set default permissions to the given entry */
 static void
 entry_default_perms (struct pcifs *fs, struct pcifs_dirent *e)
 {
@@ -399,6 +401,7 @@ entry_set_perms (struct pcifs *fs, struct pcifs_dirent *e)
   return;
 }
 
+/* Update all entries' permissions */
 error_t
 fs_set_permissions (struct pcifs * fs)
 {

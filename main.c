@@ -38,10 +38,9 @@
 #include <pcifs.h>
 #include <startup.h>
 
-
 /* Libnetfs stuff */
 int netfs_maxsymlinks = 0;
-char *netfs_server_name = "pci_arbiter";
+char *netfs_server_name = "pci-arbiter";
 char *netfs_server_version = HURD_VERSION;
 
 int

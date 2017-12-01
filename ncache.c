@@ -27,6 +27,8 @@
 #include <pcifs.h>
 #include <netfs_impl.h>
 
+/* Implementation of node caching functions */
+
 /* Remove NN's node from its position in FS's node cache.  */
 void
 node_unlink (struct node *node, struct pcifs *fs)

@@ -18,6 +18,8 @@
    along with the GNU Hurd.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* Startup and shutdown notifications management */
+
 #include <startup.h>
 
 #include <unistd.h>

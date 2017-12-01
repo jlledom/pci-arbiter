@@ -38,8 +38,8 @@ static error_t
 parse_hook_add_set (struct parse_hook *h)
 {
   struct pcifs_perm *new = realloc (h->permsets,
-				       (h->num_permsets +
-					1) * sizeof (struct pcifs_perm));
+				    (h->num_permsets +
+				     1) * sizeof (struct pcifs_perm));
   if (!new)
     return ENOMEM;
 
@@ -58,6 +58,10 @@ parse_hook_add_set (struct parse_hook *h)
   return 0;
 }
 
+/*
+ * Some options depend on other options to be valid. Check whether all
+ * dependences are met.
+ */
 static error_t
 check_options_validity (struct parse_hook *h)
 {
@@ -236,6 +240,9 @@ parse_opt (int opt, char *arg, struct argp_state *state)
   return err;
 }
 
+/*
+ * Print current permissions. Called by fsysopts.
+ */
 error_t
 netfs_append_args (char **argz, size_t * argz_len)
 {

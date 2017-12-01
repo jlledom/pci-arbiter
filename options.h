@@ -67,8 +67,8 @@ static const struct argp_option options[] = {
 };
 
 static const char doc[] = "More than one permission scope may be specified. \
--D and -C create a new permission scope if the current one already has a value \
-for that option. If one node is covered by more than one permission scope, \
-only the first permission is applied to that node.";
+Uppercase options create a new permission scope if the current one already \
+has a value for that option. If one node is covered by more than one \
+permission scope, only the first permission is applied to that node.";
 
 #endif // OPTIONS_H

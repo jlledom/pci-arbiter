@@ -20,7 +20,7 @@
  */
 
 /*
- * PCI access backend header.
+ * PCI backend header for x86 (32 and 64 bit) architectures.
  *
  * Following code is borrowed from libpciaccess:
  * https://cgit.freedesktop.org/xorg/lib/libpciaccess/
