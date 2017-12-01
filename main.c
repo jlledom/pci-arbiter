@@ -27,6 +27,7 @@
 #include <hurd/netfs.h>
 
 #include <pci_S.h>
+#include <startup_notify_S.h>
 #include "libnetfs/io_S.h"
 #include "libnetfs/fs_S.h"
 #include "libports/notify_S.h"
@@ -35,6 +36,7 @@
 #include "libnetfs/ifsock_S.h"
 #include <pci_access.h>
 #include <pcifs.h>
+#include <startup.h>
 
 
 /* Libnetfs stuff */
@@ -53,7 +55,8 @@ netfs_demuxer (mach_msg_header_t * inp, mach_msg_header_t * outp)
       (routine = netfs_fsys_server_routine (inp)) ||
       (routine = ports_interrupt_server_routine (inp)) ||
       (routine = netfs_ifsock_server_routine (inp)) ||
-      (routine = pci_server_routine (inp)))
+      (routine = pci_server_routine (inp)) ||
+      (routine = startup_notify_server_routine (inp)))
     {
       (*routine) (inp, outp);
       return TRUE;
@@ -103,6 +106,12 @@ main (int argc, char **argv)
   err = fs_set_permissions (fs);
   if (err)
     error (1, err, "Setting permissions");
+
+  /*
+   * Ask init to tell us when the system is going down,
+   * so we can try to be friendly to our correspondents on the network.
+   */
+  arrange_shutdown_notification ();
 
   netfs_server_loop ();		/* Never returns.  */
 
