@@ -83,7 +83,7 @@ S_pci_conf_read (struct protid * master, int reg, char **data,
 		 size_t * datalen, mach_msg_type_number_t amount)
 {
   error_t err;
-  pthread_rwlock_t *lock;
+  pthread_mutex_t *lock;
   struct pcifs_dirent *e;
 
   if (!master)
@@ -111,9 +111,9 @@ S_pci_conf_read (struct protid * master, int reg, char **data,
    * The server is not single-threaded anymore. Incoming rpcs are handled by
    * libnetfs which is multi-threaded. A lock is needed for arbitration.
    */
-  pthread_rwlock_rdlock (lock);
+  pthread_mutex_lock (lock);
   err = pci_sys->read (e->bus, e->dev, e->func, reg, *data, amount);
-  pthread_rwlock_unlock (lock);
+  pthread_mutex_unlock (lock);
 
   if (!err)
     {
@@ -131,7 +131,7 @@ S_pci_conf_write (struct protid * master, int reg, char *data, size_t datalen,
 		  mach_msg_type_number_t * amount)
 {
   error_t err;
-  pthread_rwlock_t *lock;
+  pthread_mutex_t *lock;
   struct pcifs_dirent *e;
 
   if (!master)
@@ -148,9 +148,9 @@ S_pci_conf_write (struct protid * master, int reg, char *data, size_t datalen,
   if (err)
     return err;
 
-  pthread_rwlock_wrlock (lock);
+  pthread_mutex_lock (lock);
   err = pci_sys->write (e->bus, e->dev, e->func, reg, data, datalen);
-  pthread_rwlock_unlock (lock);
+  pthread_mutex_unlock (lock);
 
   if (!err)
     {

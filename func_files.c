@@ -90,15 +90,9 @@ io_config_file (struct pci_device * dev, off_t offset, size_t * len,
   if ((offset + *len) > FILE_CONFIG_SIZE)
     *len = FILE_CONFIG_SIZE - offset;
 
-  if (op == pci_sys->read)
-    pthread_rwlock_rdlock (&fs->pci_conf_lock);
-  else if (op == pci_sys->write)
-    pthread_rwlock_wrlock (&fs->pci_conf_lock);
-  else
-    return EINVAL;
-
+  pthread_mutex_lock (&fs->pci_conf_lock);
   err = config_block_op (dev, offset, len, data, op);
-  pthread_rwlock_unlock (&fs->pci_conf_lock);
+  pthread_mutex_unlock (&fs->pci_conf_lock);
 
   return err;
 }
