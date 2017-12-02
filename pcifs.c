@@ -194,7 +194,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   e_stat = list->stat;
   e_stat.st_mode &= ~S_IROOT;	/* Remove the root mode */
   c_domain = c_bus = c_dev = -1;
-  bus_parent = dev_parent = func_parent = 0;
+  domain_parent = bus_parent = dev_parent = func_parent = 0;
   for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
        i++, device++)
     {
