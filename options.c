@@ -204,6 +204,9 @@ parse_opt (int opt, char *arg, struct argp_state *state)
       fs->params.perms = h->permsets;
       fs->params.num_perms = h->num_permsets;
 
+      /* Set cache len */
+      fs->params.node_cache_max = h->ncache_len;
+
       if (fs->root)
 	{
 	  /*

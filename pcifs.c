@@ -140,7 +140,6 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
   fs->num_entries = 1;
   fs->root = netfs_root_node = np;
   fs->root->nn->ln = fs->entries;
-  fs->params.node_cache_max = NODE_CACHE_MAX;
   pthread_mutex_init (&fs->node_cache_lock, 0);
   pthread_mutex_init (&fs->pci_conf_lock, 0);
 
