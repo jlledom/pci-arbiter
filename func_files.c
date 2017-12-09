@@ -85,10 +85,10 @@ io_config_file (struct pci_device * dev, off_t offset, size_t * len,
   assert_backtrace (dev != 0);
 
   /* Don't exceed the config space size */
-  if (offset > FILE_CONFIG_SIZE)
+  if (offset > dev->config_size)
     return EINVAL;
-  if ((offset + *len) > FILE_CONFIG_SIZE)
-    *len = FILE_CONFIG_SIZE - offset;
+  if ((offset + *len) > dev->config_size)
+    *len = dev->config_size - offset;
 
   pthread_mutex_lock (&fs->pci_conf_lock);
   err = config_block_op (dev, offset, len, data, op);

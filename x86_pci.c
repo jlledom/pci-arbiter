@@ -66,6 +66,8 @@
 #define PCI_COMMAND		0x04
 #define PCI_SECONDARY_BUS	0x19
 
+#define PCI_CONFIG_SIZE  256
+
 static error_t
 x86_enable_io (void)
 {
@@ -756,7 +758,10 @@ pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
 
 	  d = devices + pci_sys->num_devices;
 
-	  d->domain = 0;	/* PCI express still not supported */
+	  /* Fixed values as PCI express is still not supported */
+	  d->domain = 0;
+	  d->config_size = PCI_CONFIG_SIZE;
+
 	  d->bus = bus;
 	  d->dev = dev;
 	  d->func = func;

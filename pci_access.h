@@ -155,6 +155,11 @@ struct pci_device
    * Mapped ROM
    */
   void *rom_memory;
+
+  /*
+   * Size of the configuration space
+   */
+  size_t config_size;
 };
 
 typedef error_t (*pci_io_op_t) (unsigned bus, unsigned dev, unsigned func,

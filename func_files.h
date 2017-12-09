@@ -26,7 +26,6 @@
 
 /* Config */
 #define FILE_CONFIG_NAME  "config"
-#define FILE_CONFIG_SIZE  256
 
 /* Rom */
 #define FILE_ROM_NAME     "rom"

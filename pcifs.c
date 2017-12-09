@@ -271,7 +271,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       /* Change mode to a regular file */
       e_stat = func_parent->stat;
       e_stat.st_mode &= ~(S_IFDIR | S_IXUSR | S_IXGRP);
-      e_stat.st_size = FILE_CONFIG_SIZE;
+      e_stat.st_size = device->config_size;
 
       /* Create config entry */
       strncpy (entry_name, FILE_CONFIG_NAME, NAME_SIZE);
