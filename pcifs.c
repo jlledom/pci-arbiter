@@ -102,24 +102,10 @@ init_file_system (file_t underlying_node, struct pcifs * fs)
     return ENOMEM;
   np->nn_stat = underlying_node_stat;
   np->nn_stat.st_fsid = getpid ();
-  np->nn_stat.st_mode = S_IFDIR | S_IROOT
-    | (underlying_node_stat.st_mode & ~S_IFMT & ~S_ITRANS);
+  np->nn_stat.st_mode =
+    S_IFDIR | S_IROOT | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH |
+    S_IXOTH;
   np->nn_translated = np->nn_stat.st_mode;
-
-  /* If the underlying node isn't a directory, enhance the stat
-     information.  */
-  if (!S_ISDIR (underlying_node_stat.st_mode))
-    {
-      if (underlying_node_stat.st_mode & S_IRUSR)
-	np->nn_stat.st_mode |= S_IXUSR;
-      if (underlying_node_stat.st_mode & S_IRGRP)
-	np->nn_stat.st_mode |= S_IXGRP;
-      if (underlying_node_stat.st_mode & S_IROTH)
-	np->nn_stat.st_mode |= S_IXOTH;
-    }
-
-  /* Remove write permissions to others */
-  np->nn_stat.st_mode &= ~S_IWOTH;
 
   /* Set times to now */
   fshelp_touch (&np->nn_stat, TOUCH_ATIME | TOUCH_MTIME | TOUCH_CTIME,
@@ -191,8 +177,6 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
     return ENOMEM;
 
   e = list + 1;
-  e_stat = list->stat;
-  e_stat.st_mode &= ~S_IROOT;	/* Remove the root mode */
   c_domain = c_bus = c_dev = -1;
   domain_parent = bus_parent = dev_parent = func_parent = 0;
   for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
@@ -201,6 +185,8 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       if (device->domain != c_domain)
 	{
 	  /* We've found a new domain. Add an entry for it */
+	  e_stat = list->stat;
+	  e_stat.st_mode &= ~S_IROOT;	/* Remove the root mode */
 	  memset (entry_name, 0, NAME_SIZE);
 	  snprintf (entry_name, NAME_SIZE, "%04x", device->domain);
 	  err =
@@ -271,6 +257,7 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
       /* Change mode to a regular file */
       e_stat = func_parent->stat;
       e_stat.st_mode &= ~(S_IFDIR | S_IXUSR | S_IXGRP);
+      e_stat.st_mode |= S_IFREG | S_IWUSR | S_IWGRP;
       e_stat.st_size = device->config_size;
 
       /* Create config entry */
