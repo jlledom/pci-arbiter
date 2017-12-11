@@ -24,8 +24,7 @@
 
 #include <startup.h>
 
-/* The system is going down; destroy all the extant port rights.  That
-   will cause net channels and such to close promptly.  */
+/* The system is going down. Call netfs_shutdown() */
 error_t
 S_startup_dosync (mach_port_t handle)
 {
