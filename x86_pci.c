@@ -804,35 +804,6 @@ pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
   return 0;
 }
 
-/* Look for host bridges in bus 0 dev 0 and enumerate devices */
-static error_t
-pci_system_x86_find_host_bridges (struct pci_system *pci_sys)
-{
-  error_t err;
-  uint8_t nfuncs;
-  uint32_t reg;
-  int i;
-
-  err = pci_nfuncs (pci_sys, 0, 0, &nfuncs);
-  if (err)
-    return err;
-
-  for (i = 0; i < nfuncs; i++)
-    {
-      err = pci_sys->read (0, 0, i, PCI_VENDOR_ID, &reg, sizeof (reg));
-      if (err)
-	return err;
-
-      if (PCI_VENDOR (reg) == PCI_VENDOR_INVALID || PCI_VENDOR (reg) == 0)
-	continue;
-
-      /* Host bridge found, scan its bus */
-      pci_system_x86_scan_bus (pci_sys, i);
-    }
-
-  return 0;
-}
-
 /* Initialize the x86 module */
 error_t
 pci_system_x86_create (void)
@@ -861,7 +832,7 @@ pci_system_x86_create (void)
 
   /* Recursive scan */
   pci_sys->num_devices = 0;
-  err = pci_system_x86_find_host_bridges (pci_sys);
+  err = pci_system_x86_scan_bus (pci_sys, 0);
   if (err)
     {
       x86_disable_io ();
