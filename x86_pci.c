@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/io.h>
+#include <string.h>
 
 #include <pci_access.h>
 
@@ -757,6 +758,7 @@ pci_system_x86_scan_bus (struct pci_system *pci_sys, uint8_t bus)
 	    return ENOMEM;
 
 	  d = devices + pci_sys->num_devices;
+	  memset (d, 0, sizeof (struct pci_device));
 
 	  /* Fixed values as PCI express is still not supported */
 	  d->domain = 0;
