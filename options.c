@@ -105,14 +105,6 @@ parse_opt (int opt, char *arg, struct argp_state *state)
 #define FAIL(rerr, status, perr, fmt, args...)  \
   do{ argp_failure (state, status, perr, fmt , ##args); RETURN (rerr); } while(0)
 
-  /* Parse STR and return the corresponding  internet address.  If STR is not
-     a valid internet address, signal an error mentioned TYPE.  */
-#undef	ADDR
-#define ADDR(str, type)                         \
-  ({ unsigned long addr = inet_addr (str);      \
-     if (addr == INADDR_NONE) PERR (EINVAL, "Malformed %s", type);  \
-     addr; })
-
   if (!arg && state->next < state->argc && (*state->argv[state->next] != '-'))
     {
       arg = state->argv[state->next];
@@ -186,16 +178,15 @@ parse_opt (int opt, char *arg, struct argp_state *state)
 	    {
 	      /*
 	       * If there's an option dependence error but the server is yet
-	       * running, print the error and do nothing
+	       * running, print the error and do nothing.
 	       */
-	      error (0, err, "Invalid options, no changes were applied");
 	      free (h->permsets);
 	      free (h);
-	      break;
+	      PERR (err, "Invalid options, no changes were applied");
 	    }
 	  else
 	    /* Invalid options on a non-started server, exit() */
-	    error (1, err, "Option dependence error");
+	    PERR (err, "Option dependence error");
 	}
 
       /* Set permissions to FS */
