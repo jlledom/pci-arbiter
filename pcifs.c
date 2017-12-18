@@ -144,11 +144,19 @@ create_fs_tree (struct pcifs * fs, struct pci_system * pci_sys)
   struct stat e_stat;
   char entry_name[NAME_SIZE];
 
-  nentries = 2;			/* Skip root and domain entries */
-  c_bus = c_dev = -1;
+  nentries = 1;			/* Skip root entry */
+  c_domain = c_bus = c_dev = -1;
   for (i = 0, device = pci_sys->devices; i < pci_sys->num_devices;
        i++, device++)
     {
+      if (device->domain != c_domain)
+	{
+	  c_domain = device->domain;
+	  c_bus = -1;
+	  c_dev = -1;
+	  nentries++;
+	}
+
       if (device->bus != c_bus)
 	{
 	  c_bus = device->bus;
