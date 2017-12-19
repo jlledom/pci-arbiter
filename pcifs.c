@@ -337,19 +337,12 @@ entry_check_perms (struct iouser * user, struct pcifs_dirent * e, int flags)
 static void
 entry_default_perms (struct pcifs *fs, struct pcifs_dirent *e)
 {
-  int i;
-  struct pcifs_perm *perms = fs->params.perms, *p;
-  size_t num_perms = fs->params.num_perms;
+  /* Set default owner and group */
+  UPDATE_OWNER (e, fs->root->nn->ln->stat.st_uid);
+  UPDATE_GROUP (e, fs->root->nn->ln->stat.st_gid);
 
-  for (i = 0, p = perms; i < num_perms; i++, p++)
-    {
-      /* Set default owner and group */
-      UPDATE_OWNER (e, fs->root->nn->ln->stat.st_uid);
-      UPDATE_GROUP (e, fs->root->nn->ln->stat.st_gid);
-
-      /* Update ctime */
-      UPDATE_TIMES (e, TOUCH_CTIME);
-    }
+  /* Update ctime */
+  UPDATE_TIMES (e, TOUCH_CTIME);
 
   return;
 }
