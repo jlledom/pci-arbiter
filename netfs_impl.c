@@ -137,6 +137,35 @@ lookup (struct node *np, char *name)
   return ret;
 }
 
+static error_t
+create_node (struct pcifs_dirent * e, struct node ** node)
+{
+  struct node *np;
+  struct netnode *nn;
+
+  np = netfs_make_node_alloc (sizeof (struct netnode));
+  if (!np)
+    return ENOMEM;
+  np->nn_stat = e->stat;
+  np->nn_translated = np->nn_stat.st_mode;
+
+  nn = netfs_node_netnode (np);
+  memset (nn, 0, sizeof (struct netnode));
+  nn->ln = e;
+
+  *node = e->node = np;
+
+  return 0;
+}
+
+static void
+destroy_node (struct node *node)
+{
+  if (node->nn->ln)
+    node->nn->ln->node = 0;
+  free (node);
+}
+
 /* Attempt to create a file named NAME in DIR for USER with MODE.  Set *NODE
    to the new node upon return.  On any error, clear *NODE.  *NODE should be
    locked on success; no matter what, unlock DIR before returning.  */

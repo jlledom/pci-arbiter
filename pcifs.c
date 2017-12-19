@@ -407,32 +407,3 @@ fs_set_permissions (struct pcifs * fs)
 
   return 0;
 }
-
-error_t
-create_node (struct pcifs_dirent * e, struct node ** node)
-{
-  struct node *np;
-  struct netnode *nn;
-
-  np = netfs_make_node_alloc (sizeof (struct netnode));
-  if (!np)
-    return ENOMEM;
-  np->nn_stat = e->stat;
-  np->nn_translated = np->nn_stat.st_mode;
-
-  nn = netfs_node_netnode (np);
-  memset (nn, 0, sizeof (struct netnode));
-  nn->ln = e;
-
-  *node = e->node = np;
-
-  return 0;
-}
-
-void
-destroy_node (struct node *node)
-{
-  if (node->nn->ln)
-    node->nn->ln->node = 0;
-  free (node);
-}
